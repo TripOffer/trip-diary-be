@@ -6,6 +6,10 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PostModule } from './post/post.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { CommentModule } from './comment/comment.module';
+import { TagModule } from './tag/tag.module';
+import { LikeModule } from './like/like.module';
+import { FavoriteModule } from './favorite/favorite.module';
 
 @Module({
   imports: [
@@ -15,6 +19,10 @@ import { PrismaModule } from './prisma/prisma.module';
       autoSchemaFile: join(process.cwd(), 'src/graphql/schema.gql'),
     }),
     PostModule,
+    CommentModule,
+    TagModule,
+    LikeModule,
+    FavoriteModule,
   ],
   controllers: [AppController],
   providers: [AppService],
