@@ -59,9 +59,17 @@ type Query {
 }
 
 type Mutation {
+  createUser(createUserInput: CreateUserInput!): User!
   createFavorite(createFavoriteInput: CreateFavoriteInput!): Favorite!
   updateFavorite(updateFavoriteInput: UpdateFavoriteInput!): Favorite!
   removeFavorite(id: Int!): Favorite!
+  login(loginInput: LoginInput!): String!
+}
+
+input CreateUserInput {
+  name: String
+  password: String!
+  email: String!
 }
 
 input CreateFavoriteInput {
@@ -73,4 +81,9 @@ input UpdateFavoriteInput {
   """Example field (placeholder)"""
   exampleField: Int
   id: Int!
+}
+
+input LoginInput {
+  email: String!
+  password: String!
 }

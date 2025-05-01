@@ -1,26 +1,33 @@
 import { Injectable } from '@nestjs/common';
 import { CreateUserInput } from './dto/create-user.input';
 import { UpdateUserInput } from './dto/update-user.input';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { hash } from 'argon2';
 
 @Injectable()
 export class UserService {
-  create(createUserInput: CreateUserInput) {
-    return 'This action adds a new user';
-  }
+  constructor(private prisma: PrismaService) {}
 
-  findAll() {
-    return `This action returns all user`;
-  }
+  async create(createUserInput: CreateUserInput) {
+    let { password, name, ...user } = createUserInput;
+    const hashedPassword = await hash(password);
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
-  }
+    if (!name) {
+      name = '旅行者' + Math.floor(Math.random() * 10000).toString();
+    }
 
-  update(id: number, updateUserInput: UpdateUserInput) {
-    return `This action updates a #${id} user`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+    return this.prisma.user
+      .create({
+        data: {
+          ...user,
+          name,
+          password: hashedPassword,
+        },
+      })
+      .catch((e) => {
+        if (e.code === 'P2002') {
+          throw new Error('用户已存在');
+        }
+      });
   }
 }

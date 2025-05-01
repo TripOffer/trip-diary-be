@@ -10,6 +10,8 @@ import { CommentModule } from './comment/comment.module';
 import { TagModule } from './tag/tag.module';
 import { LikeModule } from './like/like.module';
 import { FavoriteModule } from './favorite/favorite.module';
+import { AuthModule } from './auth/auth.module';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
@@ -18,11 +20,13 @@ import { FavoriteModule } from './favorite/favorite.module';
       driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'src/graphql/schema.gql'),
     }),
+    UserModule,
     PostModule,
     CommentModule,
     TagModule,
     LikeModule,
     FavoriteModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
