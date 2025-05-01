@@ -7,6 +7,10 @@ pnpm install
 ```
 
 ```bash
+npx prisma generate
+```
+
+```bash
 pnpm run start:dev
 ```
 

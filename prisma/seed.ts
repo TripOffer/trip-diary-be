@@ -1,5 +1,5 @@
 import { Faker, simpleFaker, zh_CN, en } from '@faker-js/faker'; // 导入 en 语言包
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from '@prisma/client';
 
 // 将 en 添加到 locale 数组作为备用语言包
 const faker = new Faker({ locale: [zh_CN, en] });
