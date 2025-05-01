@@ -3,19 +3,12 @@ import { Post } from 'src/post/entities/post.entity';
 
 export class User {
   id: number;
-
   name: string;
-
   email: string;
-
-  // Consider using @Exclude() from class-transformer if password should not be sent in responses
   password: string;
-
   bio?: string | null;
-
   avatar?: string | null;
-
+  role: string;
   posts?: Post[];
-
   comments?: Comment[];
 }
