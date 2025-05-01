@@ -21,3 +21,11 @@ cp .env.example .env
 ```bash
 npx prisma migrate dev --name init
 ```
+
+## 其他
+
+### 生成模拟数据
+
+```bash
+pnpm run db:seed
+```
