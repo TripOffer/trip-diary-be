@@ -1,15 +1,15 @@
-import { Field, ObjectType } from '@nestjs/graphql';
+// import { Field, ObjectType } from '@nestjs/graphql'; // Removed
 import { Post } from 'src/post/entities/post.entity';
 import { User } from 'src/user/entities/user.entity';
 
-@ObjectType()
+// @ObjectType() // Removed
 export class Like {
-  @Field()
+  // @Field() // Removed
   id: string;
 
-  @Field(() => User)
+  // @Field(() => User) // Removed
   user: User;
 
-  @Field(() => Post)
+  // @Field(() => Post) // Removed
   post: Post;
 }

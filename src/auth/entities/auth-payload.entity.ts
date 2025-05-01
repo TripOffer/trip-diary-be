@@ -1,11 +1,6 @@
-import { Field, ObjectType } from '@nestjs/graphql';
-import { AuthUser } from './auth-user.entity'; // Import the new AuthUser type
+import { AuthUser } from './auth-user.entity';
 
-@ObjectType()
 export class AuthPayload {
-  @Field()
   token: string;
-
-  @Field(() => AuthUser) // Provide explicit type function () => AuthUser
-  user: AuthUser; // Change type to AuthUser
+  user: AuthUser;
 }

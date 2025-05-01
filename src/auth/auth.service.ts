@@ -1,12 +1,10 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { CreateAuthInput } from './dto/create-auth.input';
-import { UpdateAuthInput } from './dto/update-auth.input';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { LoginInput } from './dto/login.input';
-import { verify } from 'argon2';
 import { JwtService } from '@nestjs/jwt';
-import { AuthJwtPayload } from './types/auth-jwtPayload';
+import { verify } from 'argon2';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { User } from 'src/user/entities/user.entity';
+import { LoginInput } from './dto/login.input';
+import { AuthJwtPayload } from './types/auth-jwtPayload';
 
 @Injectable()
 export class AuthService {

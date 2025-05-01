@@ -1,14 +1,14 @@
-import { ObjectType, Field, Int } from '@nestjs/graphql';
+// import { ObjectType, Field, Int } from '@nestjs/graphql';
 import { Post } from 'src/post/entities/post.entity';
 
-@ObjectType()
+// @ObjectType()
 export class Tag {
-  @Field(() => String)
+  // @Field(() => String)
   id: string;
 
-  @Field()
+  // @Field()
   name: string;
 
-  @Field(() => [Post])
+  // @Field(() => [Post])
   posts: Post[];
 }

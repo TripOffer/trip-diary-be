@@ -1,8 +1,8 @@
+import { PartialType } from '@nestjs/mapped-types'; // Changed import
 import { CreateFavoriteInput } from './create-favorite.input';
-import { InputType, Field, Int, PartialType } from '@nestjs/graphql';
+import { IsInt } from 'class-validator';
 
-@InputType()
 export class UpdateFavoriteInput extends PartialType(CreateFavoriteInput) {
-  @Field(() => Int)
+  @IsInt()
   id: number;
 }

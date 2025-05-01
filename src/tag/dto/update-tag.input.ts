@@ -1,8 +1,8 @@
+import { PartialType } from '@nestjs/mapped-types'; // Changed import
 import { CreateTagInput } from './create-tag.input';
-import { InputType, Field, Int, PartialType } from '@nestjs/graphql';
+import { IsInt } from 'class-validator';
 
-@InputType()
 export class UpdateTagInput extends PartialType(CreateTagInput) {
-  @Field(() => Int)
+  @IsInt()
   id: number;
 }
