@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int           @id @default(autoincrement())
+  name          String        @unique
+  email         String        @unique
+  password      String
+  bio           String?
+  avatar        String?
+  role          String        @default("User") // User, Admin, Reviewer
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  posts         Post[]        @relation("UserPosts")
+  comments      Comment[]
+  likes         Like[]
+  favorites     Favorite[]
+  following     User[]        @relation("UserFollows")
+  followers     User[]        @relation("UserFollows")
+  viewHistory   ViewHistory[]
+  commentLikes  CommentLike[]
+  reviewedPosts Post[]        @relation("PostReviewedBy")
+}
+
+model Post {
+  id             String        @id @default(uuid())
+  authorId       Int
+  author         User          @relation("UserPosts", fields: [authorId], references: [id])
+  slug           String        @unique
+  title          String
+  tags           Tag[]         @relation("PostTags")
+  content        String
+  thumbnail      String?
+  images         String[]
+  video          String?
+  viewCount      Int           @default(0)
+  viewHistory    ViewHistory[]
+  likeCount      Int           @default(0)
+  likes          Like[]
+  favoriteCount  Int           @default(0)
+  favorites      Favorite[]
+  commentCount   Int           @default(0)
+  comments       Comment[]
+  published      Boolean       @default(false)
+  publishedAt    DateTime?
+  status         String        @default("Pending") // Pending, Approved, Rejected
+  rejectedReason String?
+  reviewedById   Int?
+  reviewedBy     User?         @relation("PostReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt     DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([authorId])
+  @@index([reviewedById])
+}
+
+model Comment {
+  id         String        @id @default(uuid())
+  postId     String
+  post       Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId   Int
+  author     User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content    String
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  parentId   String?
+  parent     Comment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  likeCount  Int           @default(0)
+  likes      CommentLike[]
+  replyCount Int           @default(0)
+  replies    Comment[]     @relation("CommentReplies")
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+model CommentLike {
+  userId    Int
+  commentId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, commentId])
+  @@index([commentId])
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  posts     Post[]   @relation("PostTags")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Like {
+  userId    Int
+  postId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, postId])
+}
+
+model Favorite {
+  userId    Int
+  postId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, postId])
+}
+
+model ViewHistory {
+  id       String   @id @default(uuid())
+  userId   Int
+  postId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  viewedAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([postId])
+}
