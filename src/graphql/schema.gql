@@ -53,6 +53,18 @@ type Favorite {
   post: Post!
 }
 
+type AuthUser {
+  id: Int!
+  email: String!
+  name: String!
+  avatar: String
+}
+
+type AuthPayload {
+  token: String!
+  user: AuthUser!
+}
+
 type Query {
   posts: [Post!]!
   favorite(id: Int!): Favorite!
@@ -63,7 +75,7 @@ type Mutation {
   createFavorite(createFavoriteInput: CreateFavoriteInput!): Favorite!
   updateFavorite(updateFavoriteInput: UpdateFavoriteInput!): Favorite!
   removeFavorite(id: Int!): Favorite!
-  login(loginInput: LoginInput!): String!
+  login(loginInput: LoginInput!): AuthPayload!
 }
 
 input CreateUserInput {

@@ -16,11 +16,11 @@ export class User {
   @Field(() => String)
   password: string;
 
-  @Field({ nullable: true })
-  bio?: string;
+  @Field(() => String, { nullable: true })
+  bio?: string | null;
 
-  @Field({ nullable: true })
-  avatar?: string;
+  @Field(() => String, { nullable: true })
+  avatar?: string | null;
 
   @Field(() => [Post])
   posts?: Post[];
