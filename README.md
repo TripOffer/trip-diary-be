@@ -12,7 +12,7 @@ pnpm run start:dev
 
 ## 如何初始化
 
-复制 `.env.example` 到 `.env` 并修改配置 
+复制 `.env.example` 到 `.env` 并修改配置
 
 ```bash
 cp .env.example .env
