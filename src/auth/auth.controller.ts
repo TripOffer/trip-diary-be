@@ -5,6 +5,7 @@ import {
   Param,
   Post,
   Put,
+  Request,
   UseGuards,
   ValidationPipe,
 } from '@nestjs/common';
@@ -40,22 +41,22 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Delete(':id')
+  @Delete()
   async deleteAccount(
-    @Param('id') id: string,
     @Body(new ValidationPipe()) deleteAccountInput: DeleteAccountInput,
+    @Request() req: any,
   ) {
-    await this.authService.deleteAccount(Number(id), deleteAccountInput);
+    await this.authService.deleteAccount(req.user, deleteAccountInput);
     return { success: true, message: '账号已注销' };
   }
 
   @UseGuards(JwtAuthGuard)
-  @Put(':id/password')
+  @Put('password')
   async updatePassword(
-    @Param('id') id: string,
     @Body(new ValidationPipe()) updatePasswordInput: UpdatePasswordInput,
+    @Request() req: any,
   ) {
-    await this.authService.updatePassword(Number(id), updatePasswordInput);
+    await this.authService.updatePassword(req.user, updatePasswordInput);
     return { success: true, message: '密码修改成功' };
   }
 

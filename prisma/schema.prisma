@@ -16,11 +16,13 @@ datasource db {
 
 model User {
   id            Int           @id @default(autoincrement())
-  name          String        @unique
+  name          String        
   email         String        @unique
   password      String
   bio           String?
   avatar        String?
+  gender        String        @default("secret") // secret, male, female
+  birthday      DateTime?
   role          String        @default("User") // User, Admin, Reviewer
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt

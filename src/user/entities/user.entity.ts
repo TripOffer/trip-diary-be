@@ -8,6 +8,7 @@ export class User {
   password: string;
   bio?: string | null;
   avatar?: string | null;
+  gender: string | 'secret' | 'male' | 'female';
   role: string;
   posts?: Post[];
   comments?: Comment[];

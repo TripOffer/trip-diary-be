@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { verify } from 'argon2';
+import { hash, verify } from 'argon2';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { User } from 'src/user/entities/user.entity';
 import { LoginInput } from './dto/login.input';
@@ -59,16 +59,11 @@ export class AuthService {
 
   async login(user: User) {
     const accessToken = await this.generateToken(user);
+    // 统一返回 user 的结构，去除 password 字段
+    const { password, ...userInfo } = user;
     return {
       token: accessToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        avatar: user.avatar,
-        bio: user.bio,
-        role: user.role,
-      },
+      user: userInfo,
     };
   }
 
@@ -97,12 +92,11 @@ export class AuthService {
     const user = await this.prisma.user.create({
       data: {
         email: registerInput.email,
-        password: await require('argon2').hash(registerInput.password),
+        password: await hash(registerInput.password),
         name,
-        avatar: registerInput.avatar,
-        bio: registerInput.bio,
       },
     });
+    // 统一返回 user 的结构
     return this.login(user);
   }
 
@@ -144,9 +138,7 @@ export class AuthService {
     return redisCode === code;
   }
 
-  async deleteAccount(userId: number, input: DeleteAccountInput) {
-    // 查询用户
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+  async deleteAccount(user: User, input: DeleteAccountInput) {
     if (!user) throw new BadRequestException('用户不存在');
 
     // 校验验证码
@@ -163,12 +155,11 @@ export class AuthService {
     if (!isPasswordMatched) throw new UnauthorizedException('密码错误');
 
     // 删除用户
-    await this.prisma.user.delete({ where: { id: userId } });
+    await this.prisma.user.delete({ where: { id: user.id } });
     return true;
   }
 
-  async updatePassword(userId: number, input: UpdatePasswordInput) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+  async updatePassword(user: User, input: UpdatePasswordInput) {
     if (!user) throw new BadRequestException('用户不存在');
 
     // 校验旧密码
@@ -181,7 +172,7 @@ export class AuthService {
     // 更新新密码
     const newHashedPassword = await require('argon2').hash(input.newPassword);
     await this.prisma.user.update({
-      where: { id: userId },
+      where: { id: user.id },
       data: { password: newHashedPassword },
     });
     return true;

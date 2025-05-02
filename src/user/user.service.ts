@@ -29,4 +29,38 @@ export class UserService {
         }
       });
   }
+
+  async findBasicInfoById(id: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        avatar: true,
+        bio: true,
+        gender: true,
+      },
+    });
+    return user;
+  }
+
+  async updateBasicInfo(
+    id: number,
+    data: Partial<{
+      name: string;
+      bio: string;
+      gender: string;
+    }>,
+  ) {
+    return this.prisma.user.update({
+      where: { id },
+      data,
+      select: {
+        id: true,
+        name: true,
+        bio: true,
+        gender: true,
+      },
+    });
+  }
 }
