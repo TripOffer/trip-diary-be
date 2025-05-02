@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateUserInput } from './dto/create-user.input';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { hash } from 'argon2';
+import { UpdateUserInput } from './dto/update-user.input';
 
 @Injectable()
 export class UserService {
@@ -44,14 +45,7 @@ export class UserService {
     return user;
   }
 
-  async updateBasicInfo(
-    id: number,
-    data: Partial<{
-      name: string;
-      bio: string;
-      gender: string;
-    }>,
-  ) {
+  async updateBasicInfo(id: number, data: Partial<UpdateUserInput>) {
     return this.prisma.user.update({
       where: { id },
       data,
@@ -60,6 +54,7 @@ export class UserService {
         name: true,
         bio: true,
         gender: true,
+        birthday: true,
       },
     });
   }

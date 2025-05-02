@@ -8,6 +8,7 @@ import {
   NotFoundException,
   Body,
   Put,
+  ValidationPipe,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth/jwt-auth.guard';
@@ -37,11 +38,16 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Put()
   async updateProfile(
-    @Body() updateUserInput: UpdateUserInput,
+    @Body(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      }),
+    )
+    updateUserInput: UpdateUserInput,
     @Request() req: any,
   ) {
     const id = req.user.id;
-    const { name, bio, gender } = updateUserInput;
-    return this.userService.updateBasicInfo(id, { name, bio, gender });
+    return this.userService.updateBasicInfo(id, updateUserInput);
   }
 }

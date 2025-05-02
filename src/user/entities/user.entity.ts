@@ -9,7 +9,10 @@ export class User {
   bio?: string | null;
   avatar?: string | null;
   gender: string | 'secret' | 'male' | 'female';
+  birthday?: Date | null;
   role: string;
   posts?: Post[];
   comments?: Comment[];
+  createdAt: Date;
+  updatedAt: Date;
 }
