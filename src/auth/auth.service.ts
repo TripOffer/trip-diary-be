@@ -36,14 +36,29 @@ export class AuthService {
     return user;
   }
 
-  async generateToken(userId: number) {
-    const payload: AuthJwtPayload = { sub: userId };
+  async generateToken(user: User) {
+    const payload: AuthJwtPayload = { sub: user.id, email: user.email };
     const accessToken = await this.jwtService.signAsync(payload);
     return accessToken;
   }
 
+  async validateToken(token: string) {
+    try {
+      const payload = await this.jwtService.verifyAsync(token);
+      return payload;
+    } catch (error) {
+      throw new UnauthorizedException('无效的token');
+    }
+  }
+
+  async validateJwtUser(userId: number) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('用户不存在');
+    return user;
+  }
+
   async login(user: User) {
-    const accessToken = await this.generateToken(user.id);
+    const accessToken = await this.generateToken(user);
     return {
       token: accessToken,
       user: {
@@ -161,7 +176,7 @@ export class AuthService {
       user.password,
       input.oldPassword,
     );
-    if (!isPasswordMatched) throw new UnauthorizedException('旧密码错误');
+    if (!isPasswordMatched) throw new BadRequestException('旧密码错误');
 
     // 更新新密码
     const newHashedPassword = await require('argon2').hash(input.newPassword);
