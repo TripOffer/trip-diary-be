@@ -85,6 +85,24 @@ export class UserService {
     });
   }
 
+  async updateAvatar(id: number, avatar: string) {
+    // 检查 OssObject 表中是否存在该 key
+    const oss = await this.prisma.ossObject.findUnique({
+      where: { key: avatar },
+    });
+    if (!oss) {
+      throw new NotFoundException('头像文件不存在');
+    }
+    return this.prisma.user.update({
+      where: { id },
+      data: { avatar },
+      select: {
+        id: true,
+        avatar: true,
+      },
+    });
+  }
+
   async changeUserRole(
     id: number,
     data: ChangeUserRoleInput,

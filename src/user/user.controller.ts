@@ -20,6 +20,7 @@ import { ChangeUserRoleInput } from './dto/change-user-role.input';
 import { GetUserListQueryDto } from './dto/get-user-list-query.dto';
 import { fullInfoSelect } from './common/info-select';
 import { filterBySelect } from 'src/common/filter-by-select.util';
+import { UpdateAvatarInput } from './dto/update-avatar.input';
 
 @Controller('user')
 export class UserController {
@@ -37,18 +38,6 @@ export class UserController {
     return this.userService.getUserList(query, req.user);
   }
 
-  @Get(':id')
-  async getUserProfileById(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req: any,
-  ) {
-    const user = await this.userService.findBasicInfoById(id, req.user);
-    if (!user) {
-      throw new NotFoundException('用户不存在');
-    }
-    return user;
-  }
-
   @UseGuards(JwtAuthGuard)
   @Put()
   async updateProfile(
@@ -63,6 +52,29 @@ export class UserController {
   ) {
     const id = req.user.id;
     return this.userService.updateBasicInfo(id, updateUserInput);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('avatar')
+  async updateAvatar(
+    @Body()
+    input: UpdateAvatarInput,
+    @Request() req: any,
+  ) {
+    const id = req.user.id;
+    return this.userService.updateAvatar(id, input.avatar);
+  }
+
+  @Get(':id')
+  async getUserProfileById(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: any,
+  ) {
+    const user = await this.userService.findBasicInfoById(id, req.user);
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+    return user;
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)
