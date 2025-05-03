@@ -9,10 +9,13 @@ import {
   Body,
   Put,
   ValidationPipe,
+  ForbiddenException,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth/jwt-auth.guard';
 import { UpdateUserInput } from './dto/update-user.input';
+import { AdminGuard } from '../auth/guards/admin.guard';
+import { ChangeUserRoleInput } from './dto/change-user-role.input';
 
 @Controller('user')
 export class UserController {
@@ -49,5 +52,15 @@ export class UserController {
   ) {
     const id = req.user.id;
     return this.userService.updateBasicInfo(id, updateUserInput);
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Put(':id/role')
+  async changeUserRole(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() changeUserRoleInput: ChangeUserRoleInput,
+    @Request() req: any,
+  ) {
+    return this.userService.changeUserRole(id, changeUserRoleInput, req.user);
   }
 }
