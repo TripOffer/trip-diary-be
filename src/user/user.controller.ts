@@ -10,12 +10,16 @@ import {
   Put,
   ValidationPipe,
   ForbiddenException,
+  Query,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth/jwt-auth.guard';
 import { UpdateUserInput } from './dto/update-user.input';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { ChangeUserRoleInput } from './dto/change-user-role.input';
+import { GetUserListQueryDto } from './dto/get-user-list-query.dto';
+import { fullInfoSelect } from './common/info-select';
+import { filterBySelect } from 'src/common/filter-by-select.util';
 
 @Controller('user')
 export class UserController {
@@ -24,14 +28,21 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Get()
   async getProfile(@Request() req: any) {
-    // 只返回基础信息
-    const { id, name, email, avatar, bio, gender, role } = req.user;
-    return { id, name, email, avatar, bio, gender, role };
+    return filterBySelect(req.user, fullInfoSelect);
+  }
+
+  @Get('list')
+  @UseGuards(JwtAuthGuard)
+  async getUserList(@Query() query: GetUserListQueryDto, @Request() req: any) {
+    return this.userService.getUserList(query, req.user);
   }
 
   @Get(':id')
-  async getUserById(@Param('id', ParseIntPipe) id: number) {
-    const user = await this.userService.findBasicInfoById(id);
+  async getUserProfileById(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: any,
+  ) {
+    const user = await this.userService.findBasicInfoById(id, req.user);
     if (!user) {
       throw new NotFoundException('用户不存在');
     }
