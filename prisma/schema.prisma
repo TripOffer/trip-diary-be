@@ -35,6 +35,7 @@ model User {
   viewHistory   ViewHistory[]
   commentLikes  CommentLike[]
   reviewedPosts Post[]        @relation("PostReviewedBy")
+  ossObjects    OssObject[]
 }
 
 model Post {
@@ -140,4 +141,17 @@ model ViewHistory {
 
   @@index([userId])
   @@index([postId])
+}
+
+model OssObject {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ext       String
+  width     Int?
+  height    Int?
+  duration  Float?
+  type      String?
+  createdAt DateTime @default(now())
 }

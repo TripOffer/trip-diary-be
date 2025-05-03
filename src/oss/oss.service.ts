@@ -1,16 +1,34 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  HeadObjectCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
 import * as dayjs from 'dayjs';
 import { ConfigService } from '@nestjs/config';
+import { PresignInputDto } from './dto/presign.input';
+import { RedisService } from '../common/redis.service';
+import { PrismaService } from '../prisma/prisma.service';
+
+interface OssMeta {
+  width?: string;
+  height?: string;
+  duration?: string;
+  type?: string;
+}
 
 @Injectable()
 export class OssService {
   private client: S3Client;
   private bucket: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly redisService: RedisService,
+    private readonly prisma: PrismaService,
+  ) {
     const region = this.configService.get<string>('AWS_REGION');
     const endpoint = this.configService.get<string>('S3_ENDPOINT');
     const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID');
@@ -36,21 +54,10 @@ export class OssService {
   }
 
   async generatePresignedUrl(
-    ext: string = 'jpg',
+    dto: PresignInputDto,
   ): Promise<{ url: string; key: string }> {
-    // 仅支持 webview 可用的图片和视频格式
-    const allowedExts = [
-      // 图片
-      'jpg',
-      'jpeg',
-      'png',
-      'webp',
-      'gif',
-      // 视频
-      'mp4',
-      'webm',
-    ];
-    ext = ext.toLowerCase();
+    const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'webm'];
+    const ext = dto.ext.toLowerCase();
     if (!allowedExts.includes(ext)) {
       throw new BadRequestException(
         '仅支持图片（jpg、jpeg、png、webp、gif）和视频（mp4、webm）格式',
@@ -59,22 +66,75 @@ export class OssService {
     const datePath = dayjs().format('YYYY/MM/DD');
     const key = `${datePath}/${uuidv4()}.${ext}`;
     const contentTypeMap = {
-      // 图片
       jpg: 'image/jpeg',
       jpeg: 'image/jpeg',
       png: 'image/png',
       webp: 'image/webp',
       gif: 'image/gif',
-      // 视频
       mp4: 'video/mp4',
       webm: 'video/webm',
     };
+    // 构造自定义元数据
+    const Metadata: Record<string, string> = {};
+    if (dto.width !== undefined) Metadata['width'] = String(dto.width);
+    if (dto.height !== undefined) Metadata['height'] = String(dto.height);
+    if (dto.duration !== undefined) Metadata['duration'] = String(dto.duration);
+    if (dto.type) Metadata['type'] = dto.type;
+
+    // 写入 Redis，10 分钟过期
+    const redisClient = this.redisService.getClient();
+    const redisKey = `oss:presign:${key}`;
+    const metaToSave = {
+      key,
+      ext,
+      width: dto.width,
+      height: dto.height,
+      duration: dto.duration,
+      type: dto.type,
+      createdAt: Date.now(),
+    };
+    await redisClient.set(redisKey, JSON.stringify(metaToSave), 'EX', 600);
+
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Key: key,
       ContentType: contentTypeMap[ext],
+      Metadata,
     });
-    const url = await getSignedUrl(this.client, command, { expiresIn: 300 }); // 5分钟
+    const url = await getSignedUrl(this.client, command, { expiresIn: 300 });
     return { url, key };
+  }
+
+  async confirmUpload(key: string, userId: number) {
+    if (!key) throw new Error('缺少 key');
+    if (!userId) throw new Error('缺少 userId');
+    // 检查 R2 是否存在该对象
+    try {
+      await this.client.send(
+        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+    } catch (err) {
+      throw new Error('对象未上传或已过期');
+    }
+    // 查 Redis
+    const redisClient = this.redisService.getClient();
+    const redisKey = `oss:presign:${key}`;
+    const metaStr = await redisClient.get(redisKey);
+    if (!metaStr) throw new Error('元数据不存在或已过期');
+    const meta = JSON.parse(metaStr);
+    await redisClient.del(redisKey);
+    // 写入数据库
+    const ossObject = await this.prisma.ossObject.create({
+      data: {
+        key,
+        userId,
+        ext: meta.ext,
+        width: meta.width ?? null,
+        height: meta.height ?? null,
+        duration: meta.duration ?? null,
+        type: meta.type ?? null,
+      },
+    });
+    return { success: true, ossObject };
   }
 }
