@@ -11,6 +11,7 @@ import { PostModule } from './post/post.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { TagModule } from './tag/tag.module';
 import { UserModule } from './user/user.module';
+import { OssModule } from './oss/oss.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { UserModule } from './user/user.module';
     LikeModule,
     FavoriteModule,
     AuthModule,
+    OssModule,
   ],
   controllers: [AppController],
   providers: [AppService, RedisService],
