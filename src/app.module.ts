@@ -12,6 +12,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { TagModule } from './tag/tag.module';
 import { UserModule } from './user/user.module';
 import { OssModule } from './oss/oss.module';
+import { ImageModule } from './image/image.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { OssModule } from './oss/oss.module';
     FavoriteModule,
     AuthModule,
     OssModule,
+    ImageModule,
   ],
   controllers: [AppController],
   providers: [AppService, RedisService],
