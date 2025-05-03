@@ -21,6 +21,7 @@
     "db:seed": "ts-node ./prisma/seed.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.802.0",
     "@faker-js/faker": "^9.7.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
