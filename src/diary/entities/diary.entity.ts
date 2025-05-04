@@ -3,7 +3,7 @@ import { Like } from 'src/like/entities/like.entity';
 import { Tag } from 'src/tag/entities/tag.entity';
 import { User } from 'src/user/entities/user.entity';
 
-export class Post {
+export class Diary {
   id: string;
 
   author: User;

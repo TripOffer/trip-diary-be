@@ -37,7 +37,14 @@ export class UserController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async getMe(@Request() req: any) {
-    return filterBySelect(req.user, fullInfoSelect);
+    // 过滤用户信息
+    const filteredUser = filterBySelect(req.user, fullInfoSelect);
+    // 获取关注和粉丝状态
+    const followStats = await this.userService.getFollowStats(req.user.id);
+    return {
+      ...filteredUser,
+      ...followStats,
+    };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -54,6 +61,14 @@ export class UserController {
   @Put('me/avatar')
   async updateMeAvatar(@Body() input: UpdateAvatarInput, @Request() req: any) {
     return this.userService.updateAvatar(req.user.id, input.avatar);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/follow-stats')
+  async getUserFollowStats(
+    @Param(new ValidationPipe({ transform: true })) param: GetUserIdParamDto,
+  ) {
+    return this.userService.getFollowStats(param.id);
   }
 
   @Get(':id')

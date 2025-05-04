@@ -1,5 +1,5 @@
 import { Comment } from 'src/comment/entities/comment.entity';
-import { Post } from 'src/post/entities/post.entity';
+import { Diary } from 'src/diary/entities/diary.entity';
 
 export class User {
   id: number;
@@ -11,7 +11,7 @@ export class User {
   gender: string | 'secret' | 'male' | 'female';
   birthday?: Date | null;
   role: string;
-  posts?: Post[];
+  diaries?: Diary[];
   comments?: Comment[];
   createdAt: Date;
   updatedAt: Date;

@@ -54,14 +54,29 @@ export class UserService {
     return user;
   }
 
-  async findBasicInfoById(id: number, currentUser?: { role?: string }) {
+  async findBasicInfoById(
+    id: number,
+    currentUser?: { id?: number; role?: string },
+  ) {
+    // 只有自己能看到自己的完整信息
+    const isSelf = currentUser && currentUser.id === id;
     const isAdmin = isAdminUser(currentUser);
-    console.log('isAdmin', isAdmin, currentUser);
+    const select = isSelf || isAdmin ? fullInfoSelect : basicInfoSelect;
     const user = await this.prisma.user.findUnique({
       where: { id },
-      select: isAdmin ? fullInfoSelect : basicInfoSelect,
+      select,
     });
-    return user;
+    if (!user) return null;
+    // 查询关注数和粉丝数
+    const [followingCount, followersCount] = await this.prisma.$transaction([
+      this.prisma.userFollow.count({ where: { followerId: id } }),
+      this.prisma.userFollow.count({ where: { followingId: id } }),
+    ]);
+    return {
+      ...user,
+      followingCount,
+      followersCount,
+    };
   }
 
   async findByIdWithSelect(id: number, select: Record<string, boolean>) {
@@ -287,5 +302,13 @@ export class UserService {
       size,
       totalPages: Math.ceil(total / size),
     };
+  }
+
+  async getFollowStats(userId: number) {
+    const [followingCount, followersCount] = await this.prisma.$transaction([
+      this.prisma.userFollow.count({ where: { followerId: userId } }),
+      this.prisma.userFollow.count({ where: { followingId: userId } }),
+    ]);
+    return { followingCount, followersCount };
   }
 }

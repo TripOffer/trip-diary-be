@@ -1,8 +1,8 @@
 import { PartialType } from '@nestjs/mapped-types'; // Changed import
-import { CreatePostInput } from './create-post.input';
+import { CreateDiaryInput } from './create-diary.input';
 import { IsInt } from 'class-validator';
 
-export class UpdatePostInput extends PartialType(CreatePostInput) {
+export class UpdateDiaryInput extends PartialType(CreateDiaryInput) {
   @IsInt()
   id: number;
 }
