@@ -15,36 +15,36 @@ datasource db {
 }
 
 model User {
-  id            Int           @id @default(autoincrement())
-  name          String        
-  email         String        @unique
-  password      String
-  bio           String?
-  avatar        String?
-  gender        String        @default("secret") // secret, male, female
-  birthday      DateTime?
-  role          String        @default("User") // User, Admin, Reviewer
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  posts         Post[]        @relation("UserPosts")
-  comments      Comment[]
-  likes         Like[]
-  favorites     Favorite[]
-  following     UserFollow[]  @relation("UserFollowing")
-  followers     UserFollow[]  @relation("UserFollowers")
-  viewHistory   ViewHistory[]
-  commentLikes  CommentLike[]
-  reviewedPosts Post[]        @relation("PostReviewedBy")
-  ossObjects    OssObject[]
+  id              Int           @id @default(autoincrement())
+  name            String
+  email           String        @unique
+  password        String
+  bio             String?
+  avatar          String?
+  gender          String        @default("secret") // secret, male, female
+  birthday        DateTime?
+  role            String        @default("User") // User, Admin, Reviewer
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  diaries         Diary[]       @relation("UserDiaries")
+  comments        Comment[]
+  likes           Like[]
+  favorites       Favorite[]
+  following       UserFollow[]  @relation("UserFollowing")
+  followers       UserFollow[]  @relation("UserFollowers")
+  viewHistory     ViewHistory[]
+  commentLikes    CommentLike[]
+  reviewedDiaries Diary[]       @relation("DiaryReviewedBy")
+  ossObjects      OssObject[]
 }
 
-model Post {
+model Diary {
   id             String        @id @default(uuid())
   authorId       Int
-  author         User          @relation("UserPosts", fields: [authorId], references: [id])
+  author         User          @relation("UserDiaries", fields: [authorId], references: [id])
   slug           String        @unique
   title          String
-  tags           Tag[]         @relation("PostTags")
+  tags           Tag[]         @relation("DiaryTags")
   content        String
   thumbnail      String?
   images         String[]
@@ -62,7 +62,7 @@ model Post {
   status         String        @default("Pending") // Pending, Approved, Rejected
   rejectedReason String?
   reviewedById   Int?
-  reviewedBy     User?         @relation("PostReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedBy     User?         @relation("DiaryReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   reviewedAt     DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
@@ -73,8 +73,8 @@ model Post {
 
 model Comment {
   id         String        @id @default(uuid())
-  postId     String
-  post       Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  diaryId    String
+  diary      Diary         @relation(fields: [diaryId], references: [id], onDelete: Cascade)
   authorId   Int
   author     User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
   content    String
@@ -87,7 +87,7 @@ model Comment {
   replyCount Int           @default(0)
   replies    Comment[]     @relation("CommentReplies")
 
-  @@index([postId])
+  @@index([diaryId])
   @@index([authorId])
   @@index([parentId])
 }
@@ -106,41 +106,41 @@ model CommentLike {
 model Tag {
   id        String   @id @default(uuid())
   name      String   @unique
-  posts     Post[]   @relation("PostTags")
+  diaries   Diary[]  @relation("DiaryTags")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Like {
   userId    Int
-  postId    String
+  diaryId   String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  diary     Diary    @relation(fields: [diaryId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
-  @@id([userId, postId])
+  @@id([userId, diaryId])
 }
 
 model Favorite {
   userId    Int
-  postId    String
+  diaryId   String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  diary     Diary    @relation(fields: [diaryId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
-  @@id([userId, postId])
+  @@id([userId, diaryId])
 }
 
 model ViewHistory {
   id       String   @id @default(uuid())
   userId   Int
-  postId   String
+  diaryId  String
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  diary    Diary    @relation(fields: [diaryId], references: [id], onDelete: Cascade)
   viewedAt DateTime @default(now())
 
   @@index([userId])
-  @@index([postId])
+  @@index([diaryId])
 }
 
 model OssObject {
@@ -157,12 +157,12 @@ model OssObject {
 }
 
 model UserFollow {
-  id           Int      @id @default(autoincrement())
-  followerId   Int
-  followingId  Int
-  follower     User     @relation("UserFollowing", fields: [followerId], references: [id])
-  following    User     @relation("UserFollowers", fields: [followingId], references: [id])
-  createdAt    DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  followerId  Int
+  followingId Int
+  follower    User     @relation("UserFollowing", fields: [followerId], references: [id])
+  following   User     @relation("UserFollowers", fields: [followingId], references: [id])
+  createdAt   DateTime @default(now())
 
   @@unique([followerId, followingId])
   @@index([followerId])
