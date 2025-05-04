@@ -1,4 +1,4 @@
-import { Comment } from 'src/comment/entities/comment.entity';
+import { Comment } from 'src/diary/comment/entities/comment.entity';
 import { Diary } from 'src/diary/entities/diary.entity';
 
 export class User {

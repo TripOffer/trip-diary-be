@@ -1,5 +1,5 @@
-import { Comment } from 'src/comment/entities/comment.entity';
-import { Like } from 'src/like/entities/like.entity';
+import { Comment } from 'src/diary/comment/entities/comment.entity';
+import { Like } from 'src/diary/like/entities/like.entity';
 import { Tag } from 'src/tag/entities/tag.entity';
 import { User } from 'src/user/entities/user.entity';
 
