@@ -57,6 +57,7 @@ model Diary {
   favorites      Favorite[]
   commentCount   Int           @default(0)
   comments       Comment[]
+  shareCount     Int           @default(0)
   published      Boolean       @default(false)
   publishedAt    DateTime?
   status         String        @default("Pending") // Pending, Approved, Rejected
