@@ -176,4 +176,116 @@ export class UserService {
       totalPages: Math.ceil(total / size),
     };
   }
+
+  // 关注用户
+  async followUser(userId: number, targetUserId: number) {
+    if (userId === targetUserId) {
+      throw new ForbiddenException('不能关注自己');
+    }
+    // 检查目标用户是否存在
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+    if (!targetUser) {
+      throw new NotFoundException('目标用户不存在');
+    }
+    // 检查是否已关注
+    const exist = await this.prisma.userFollow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: userId,
+          followingId: targetUserId,
+        },
+      },
+    });
+    if (exist) {
+      throw new ForbiddenException('已关注该用户');
+    }
+    return this.prisma.userFollow.create({
+      data: {
+        followerId: userId,
+        followingId: targetUserId,
+      },
+    });
+  }
+
+  // 取关用户
+  async unfollowUser(userId: number, targetUserId: number) {
+    if (userId === targetUserId) {
+      throw new ForbiddenException('不能取关自己');
+    }
+    // 检查目标用户是否存在
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+    if (!targetUser) {
+      throw new NotFoundException('目标用户不存在');
+    }
+    // 检查是否已关注
+    const exist = await this.prisma.userFollow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: userId,
+          followingId: targetUserId,
+        },
+      },
+    });
+    if (!exist) {
+      throw new ForbiddenException('未关注该用户');
+    }
+    return this.prisma.userFollow.delete({
+      where: {
+        followerId_followingId: {
+          followerId: userId,
+          followingId: targetUserId,
+        },
+      },
+    });
+  }
+
+  // 获取关注列表
+  async getFollowingList(userId: number, page = 1, size = 10) {
+    const [list, total] = await this.prisma.$transaction([
+      this.prisma.userFollow.findMany({
+        where: { followerId: userId },
+        skip: (page - 1) * size,
+        take: size,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          following: { select: basicInfoSelect },
+        },
+      }),
+      this.prisma.userFollow.count({ where: { followerId: userId } }),
+    ]);
+    return {
+      list: list.map((item) => item.following),
+      total,
+      page,
+      size,
+      totalPages: Math.ceil(total / size),
+    };
+  }
+
+  // 获取粉丝列表
+  async getFollowersList(userId: number, page = 1, size = 10) {
+    const [list, total] = await this.prisma.$transaction([
+      this.prisma.userFollow.findMany({
+        where: { followingId: userId },
+        skip: (page - 1) * size,
+        take: size,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          follower: { select: basicInfoSelect },
+        },
+      }),
+      this.prisma.userFollow.count({ where: { followingId: userId } }),
+    ]);
+    return {
+      list: list.map((item) => item.follower),
+      total,
+      page,
+      size,
+      totalPages: Math.ceil(total / size),
+    };
+  }
 }
