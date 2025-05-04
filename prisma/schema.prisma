@@ -30,8 +30,8 @@ model User {
   comments      Comment[]
   likes         Like[]
   favorites     Favorite[]
-  following     User[]        @relation("UserFollows")
-  followers     User[]        @relation("UserFollows")
+  following     UserFollow[]  @relation("UserFollowing")
+  followers     UserFollow[]  @relation("UserFollowers")
   viewHistory   ViewHistory[]
   commentLikes  CommentLike[]
   reviewedPosts Post[]        @relation("PostReviewedBy")
@@ -154,4 +154,17 @@ model OssObject {
   duration  Float?
   type      String?
   createdAt DateTime @default(now())
+}
+
+model UserFollow {
+  id           Int      @id @default(autoincrement())
+  followerId   Int
+  followingId  Int
+  follower     User     @relation("UserFollowing", fields: [followerId], references: [id])
+  following    User     @relation("UserFollowers", fields: [followingId], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
 }
