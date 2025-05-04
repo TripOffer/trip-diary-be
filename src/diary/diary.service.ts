@@ -17,6 +17,7 @@ import { DiaryReviewStatus, ReviewDiaryInput } from './dto/review-diary.input';
 import { UpdateDiaryInput } from './dto/update-diary.input';
 import { TagService } from '../tag/tag.service';
 import { generateSlug } from '../common/slug.util';
+import { ReviewDiaryQueryDto } from './dto/review-diary-query.dto';
 
 @Injectable()
 export class DiaryService {
@@ -230,5 +231,50 @@ export class DiaryService {
     });
     if (!diary) throw new NotFoundException('日记不存在');
     return diary;
+  }
+
+  async reviewList(query: ReviewDiaryQueryDto) {
+    const {
+      status,
+      authorId,
+      query: q,
+      sort = 'createdAt',
+      order = 'desc',
+      page = 1,
+      size = 10,
+    } = query;
+    const where: any = {};
+    if (status) where.status = status;
+    if (authorId) where.authorId = authorId;
+    if (q) {
+      where.OR = [
+        { title: { contains: q, mode: 'insensitive' } },
+        { content: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+    const [list, total] = await this.prisma.$transaction([
+      this.prisma.diary.findMany({
+        where,
+        orderBy: { [sort]: order },
+        skip: (page - 1) * size,
+        take: size,
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          author: { select: { id: true, name: true } },
+          published: true,
+          publishedAt: true,
+          createdAt: true,
+          viewCount: true,
+          likeCount: true,
+          favoriteCount: true,
+          commentCount: true,
+        },
+      }),
+      this.prisma.diary.count({ where }),
+    ]);
+    const totalPage = Math.ceil(total / size);
+    return { list, total, page, size, totalPage };
   }
 }

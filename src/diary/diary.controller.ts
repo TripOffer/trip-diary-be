@@ -1,24 +1,24 @@
 import {
   Body,
   Controller,
-  Post,
-  Req,
-  UseGuards,
-  Param,
-  Patch,
-  ValidationPipe,
   Delete,
   Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+  ValidationPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth/jwt-auth.guard';
+import { ReviewerGuard } from 'src/auth/guards/reviewer.guard';
 import { DiaryService } from './diary.service';
 import { CreateDiaryInput } from './dto/create-diary.input';
-import { ReviewerGuard } from 'src/auth/guards/reviewer.guard';
+import { ReviewDiaryQueryDto } from './dto/review-diary-query.dto';
 import { ReviewDiaryInput } from './dto/review-diary.input';
 import { UpdateDiaryPublishInput } from './dto/update-diary-publish.input';
 import { UpdateDiaryInput } from './dto/update-diary.input';
-import { diaryDetailSelect } from './common/diary.select';
-import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('diary')
 export class DiaryController {
@@ -70,5 +70,14 @@ export class DiaryController {
   @Get(':id/detail')
   async getDiaryDetail(@Param('id') id: string) {
     return this.diaryService.getDiaryDetail(id);
+  }
+
+  @UseGuards(JwtAuthGuard, ReviewerGuard)
+  @Get('review-list')
+  async getReviewList(
+    @Query(new ValidationPipe({ transform: true, whitelist: true }))
+    query: ReviewDiaryQueryDto,
+  ) {
+    return this.diaryService.reviewList(query);
   }
 }
