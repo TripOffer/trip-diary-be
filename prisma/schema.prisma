@@ -40,6 +40,9 @@ model User {
 
 model Diary {
   id             String        @id @default(uuid())
+  parentId       String?
+  parent         Diary?        @relation("DiaryParent", fields: [parentId], references: [id])
+  children       Diary[]       @relation("DiaryParent")
   authorId       Int
   author         User          @relation("UserDiaries", fields: [authorId], references: [id])
   slug           String        @unique
@@ -70,6 +73,7 @@ model Diary {
 
   @@index([authorId])
   @@index([reviewedById])
+  @@index([parentId]) // 新增索引
 }
 
 model Comment {

@@ -23,10 +23,15 @@ import { filterBySelect } from 'src/common/filter-by-select.util';
 import { UpdateAvatarInput } from './dto/update-avatar.input';
 import { GetUserFollowListQueryDto } from './dto/get-user-follow-list-query.dto';
 import { GetUserIdParamDto } from './dto/get-user-id-param.dto';
+import { DiaryService } from '../diary/diary.service';
+import { GetUserDiariesQueryDto } from 'src/diary/dto/get-user-diaries-query.dto';
 
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly diaryService: DiaryService,
+  ) {}
 
   @Get('list')
   @UseGuards(JwtAuthGuard)
@@ -61,6 +66,16 @@ export class UserController {
   @Put('me/avatar')
   async updateMeAvatar(@Body() input: UpdateAvatarInput, @Request() req: any) {
     return this.userService.updateAvatar(req.user.id, input.avatar);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/diary')
+  async getMyAllDiaries(
+    @Request() req: any,
+    @Query(new ValidationPipe({ transform: true }))
+    query: GetUserDiariesQueryDto,
+  ) {
+    return this.diaryService.getAllUserDiaries(req.user.id, query);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -127,5 +142,14 @@ export class UserController {
     query: GetUserFollowListQueryDto,
   ) {
     return this.userService.getFollowersList(param.id, query.page, query.size);
+  }
+
+  @Get(':id/diary')
+  async getUserDiaries(
+    @Param(new ValidationPipe({ transform: true })) param: GetUserIdParamDto,
+    @Query(new ValidationPipe({ transform: true }))
+    query: GetUserDiariesQueryDto,
+  ) {
+    return this.diaryService.getUserDiaries(param.id, query);
   }
 }

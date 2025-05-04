@@ -18,7 +18,7 @@ export class CreateDiaryInput {
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
-  tagIds?: string[];
+  tags?: string[];
 
   @IsArray()
   @IsString({ each: true })

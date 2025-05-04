@@ -1,8 +1,34 @@
-import { PartialType } from '@nestjs/mapped-types'; // Changed import
-import { CreateDiaryInput } from './create-diary.input';
-import { IsInt } from 'class-validator';
+import { IsOptional, IsString, IsArray, IsBoolean } from 'class-validator';
+import { Type } from 'class-transformer';
 
-export class UpdateDiaryInput extends PartialType(CreateDiaryInput) {
-  @IsInt()
-  id: number;
+export class UpdateDiaryInput {
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  content?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  images?: string[];
+
+  @IsOptional()
+  @IsString()
+  video?: string;
+
+  @IsOptional()
+  @IsString()
+  thumbnail?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  published?: boolean;
 }
