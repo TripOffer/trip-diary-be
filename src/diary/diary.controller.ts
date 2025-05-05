@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth/jwt-auth.guard';
 import { ReviewerGuard } from 'src/auth/guards/reviewer.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/jwt-auth/optional-jwt-auth.guard';
 import { DiaryService } from './diary.service';
 import { CreateDiaryInput } from './dto/create-diary.input';
 import { ReviewDiaryQueryDto } from './dto/review-diary-query.dto';
@@ -68,8 +69,9 @@ export class DiaryController {
   }
 
   @Get(':id/detail')
-  async getDiaryDetail(@Param('id') id: string) {
-    return this.diaryService.getDiaryDetail(id);
+  @UseGuards(OptionalJwtAuthGuard)
+  async getDiaryDetail(@Param('id') id: string, @Req() req) {
+    return this.diaryService.getDiaryDetail(id, req.user?.id);
   }
 
   @UseGuards(JwtAuthGuard, ReviewerGuard)

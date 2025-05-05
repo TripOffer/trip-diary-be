@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SearchDiaryDto } from './dto/search.dto';
+import { diarySelect } from '../common/diary.select';
 
 @Injectable()
 export class SearchService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async searchDiaries(dto: SearchDiaryDto) {
+  async searchDiaries(dto: SearchDiaryDto, userId?: number) {
     const {
       query,
       sort = 'publishedAt',
@@ -30,22 +31,45 @@ export class SearchService {
         orderBy: { [sort]: order },
         skip: (page - 1) * size,
         take: size,
-        select: {
-          id: true,
-          title: true,
-          content: true,
-          publishedAt: true,
-          viewCount: true,
-          likeCount: true,
-          favoriteCount: true,
-          commentCount: true,
-          thumbnail: true,
-          author: { select: { id: true, name: true, avatar: true } },
-        },
+        select: diarySelect,
       }),
       this.prisma.diary.count({ where }),
     ]);
+    let likedIds: string[] = [];
+    let favoritedIds: string[] = [];
+    let followedAuthorIds: number[] = [];
+    if (userId && list.length > 0) {
+      const diaryIds = list.map((d) => d.id);
+      const authorIds = list.map((d) => d.authorId);
+      const [likes, favorites, follows] = await this.prisma.$transaction([
+        this.prisma.like.findMany({
+          where: { userId, diaryId: { in: diaryIds } },
+          select: { diaryId: true },
+        }),
+        this.prisma.favorite.findMany({
+          where: { userId, diaryId: { in: diaryIds } },
+          select: { diaryId: true },
+        }),
+        this.prisma.userFollow.findMany({
+          where: { followerId: userId, followingId: { in: authorIds } },
+          select: { followingId: true },
+        }),
+      ]);
+      likedIds = likes.map((l) => l.diaryId);
+      favoritedIds = favorites.map((f) => f.diaryId);
+      followedAuthorIds = follows.map((f) => f.followingId);
+    }
+    const resultList = list.map((d) => ({
+      ...d,
+      ...(userId
+        ? {
+            isLiked: likedIds.includes(d.id),
+            isFavorited: favoritedIds.includes(d.id),
+            isFollowedAuthor: followedAuthorIds.includes(d.authorId),
+          }
+        : {}),
+    }));
     const totalPage = Math.ceil(total / size);
-    return { list, total, page, size, totalPage };
+    return { list: resultList, total, page, size, totalPage };
   }
 }

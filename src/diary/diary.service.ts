@@ -224,13 +224,40 @@ export class DiaryService {
     });
   }
 
-  async getDiaryDetail(id: string) {
+  async getDiaryDetail(id: string, userId?: number) {
     const diary = await this.prisma.diary.findUnique({
       where: { id },
       select: diaryDetailSelect,
     });
     if (!diary) throw new NotFoundException('日记不存在');
-    return diary;
+    let isLiked: boolean | undefined = undefined;
+    let isFavorited: boolean | undefined = undefined;
+    let isFollowedAuthor: boolean | undefined = undefined;
+    if (userId) {
+      const [like, favorite, follow] = await this.prisma.$transaction([
+        this.prisma.like.findUnique({
+          where: { userId_diaryId: { userId, diaryId: id } },
+        }),
+        this.prisma.favorite.findUnique({
+          where: { userId_diaryId: { userId, diaryId: id } },
+        }),
+        this.prisma.userFollow.findUnique({
+          where: {
+            followerId_followingId: {
+              followerId: userId,
+              followingId: diary.authorId,
+            },
+          },
+        }),
+      ]);
+      isLiked = !!like;
+      isFavorited = !!favorite;
+      isFollowedAuthor = !!follow;
+    }
+    return {
+      ...diary,
+      ...(userId ? { isLiked, isFavorited, isFollowedAuthor } : {}),
+    };
   }
 
   async reviewList(query: ReviewDiaryQueryDto) {
