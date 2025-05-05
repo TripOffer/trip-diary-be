@@ -11,6 +11,7 @@ import { ChangeUserRoleInput } from './dto/change-user-role.input';
 import { GetUserListQueryDto } from './dto/get-user-list-query.dto';
 import { isAdminUser } from '../common/is-admin-user.util';
 import { basicInfoSelect, fullInfoSelect } from './common/info-select';
+import { diarySelect } from 'src/diary/common/diary.select';
 
 @Injectable()
 export class UserService {
@@ -310,5 +311,33 @@ export class UserService {
       this.prisma.userFollow.count({ where: { followingId: userId } }),
     ]);
     return { followingCount, followersCount };
+  }
+
+  async getMyFavoriteDiaries(
+    userId: number,
+    query: { page?: number; size?: number },
+  ) {
+    const { page = 1, size = 10 } = query;
+    const [list, total] = await this.prisma.$transaction([
+      this.prisma.favorite.findMany({
+        where: { userId },
+        skip: (page - 1) * size,
+        take: size,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          diary: {
+            select: diarySelect,
+          },
+        },
+      }),
+      this.prisma.favorite.count({ where: { userId } }),
+    ]);
+    return {
+      list: list.map((item) => item.diary),
+      total,
+      page,
+      size,
+      totalPages: Math.ceil(total / size),
+    };
   }
 }

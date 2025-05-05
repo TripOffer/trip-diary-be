@@ -117,7 +117,7 @@ export class DiaryService {
     if (user.role !== 'Admin' && user.id !== diary.authorId) {
       throw new BadRequestException('无权限操作');
     }
-    await this.prisma.diary.delete({ where: { id } });
+    await this.prisma.diary.delete({ where: { id }, select: { id: true } });
     return { message: '删除成功' };
   }
 
