@@ -10,6 +10,8 @@ import { OssModule } from './oss/oss.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { TagModule } from './tag/tag.module';
 import { UserModule } from './user/user.module';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -20,6 +22,14 @@ import { UserModule } from './user/user.module';
       ignoreEnvFile: false,
       cache: true,
     }),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60000,
+          limit: 60,
+        },
+      ],
+    }),
     UserModule,
     DiaryModule,
     TagModule,
@@ -28,7 +38,14 @@ import { UserModule } from './user/user.module';
     ImageModule,
   ],
   controllers: [AppController],
-  providers: [AppService, RedisService],
+  providers: [
+    AppService,
+    RedisService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
   exports: [RedisService],
 })
 export class AppModule {}
