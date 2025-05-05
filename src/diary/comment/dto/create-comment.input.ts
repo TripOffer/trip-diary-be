@@ -1,6 +1,11 @@
-import { IsInt } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateCommentInput {
-  @IsInt()
-  exampleField: number;
+  @IsNotEmpty()
+  @IsString()
+  content: string;
+
+  @IsOptional()
+  @IsString()
+  parentId?: string;
 }

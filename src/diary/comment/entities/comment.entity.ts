@@ -1,21 +1,23 @@
-// import { ObjectType, Field, Int } from '@nestjs/graphql';
 import { Diary } from 'src/diary/entities/diary.entity';
 import { User } from 'src/user/entities/user.entity';
 
-// @ObjectType()
 export class Comment {
-  // @Field(() => String)
   id: string;
-
-  // @Field()
   content: string;
-
-  // @Field(() => Post)
   diary: Diary;
-
-  // @Field(() => User)
   author: User;
-
-  // @Field()
   createdAt: Date;
+}
+
+export class CommentEntity {
+  id: string;
+  diaryId: string;
+  authorId: number;
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
+  parentId?: string;
+  likeCount: number;
+  replyCount: number;
+  // 可根据需要扩展更多字段，如作者信息、是否已点赞等
 }
