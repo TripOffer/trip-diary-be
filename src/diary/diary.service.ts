@@ -304,4 +304,112 @@ export class DiaryService {
     const totalPage = Math.ceil(total / size);
     return { list, total, page, size, totalPage };
   }
+
+  async recommendDiaries(page = 1, size = 10, userId?: number) {
+    // 未登录用户，直接热门推荐
+    if (!userId) {
+      const [list, total] = await this.prisma.$transaction([
+        this.prisma.diary.findMany({
+          where: {
+            published: true,
+            status: 'Approved',
+          },
+          orderBy: [
+            { likeCount: 'desc' },
+            { viewCount: 'desc' },
+            { publishedAt: 'desc' },
+          ],
+          select: diarySelect,
+          skip: (page - 1) * size,
+          take: size,
+        }),
+        this.prisma.diary.count({
+          where: {
+            published: true,
+            status: 'Approved',
+          },
+        }),
+      ]);
+      const totalPage = Math.ceil(total / size);
+      return { list, total, page, size, totalPage };
+    }
+
+    // 已登录用户，优先推荐与点赞日记tag相关的
+    // 1. 找到用户点赞过的日记的所有tag
+    const likedDiaries = await this.prisma.like.findMany({
+      where: { userId },
+      select: { diary: { select: { tags: { select: { id: true } } } } },
+    });
+    const tagIds = Array.from(
+      new Set(
+        likedDiaries.flatMap((like) => like.diary.tags.map((tag) => tag.id)),
+      ),
+    );
+    if (tagIds.length === 0) {
+      // 没有点赞过，退化为热门推荐
+      return this.recommendDiaries(page, size);
+    }
+    // 2. 推荐含有这些tag的日记，排除用户已点赞的
+    const likedDiaryIds = await this.prisma.like.findMany({
+      where: { userId },
+      select: { diaryId: true },
+    });
+    const likedDiaryIdSet = new Set(likedDiaryIds.map((d) => d.diaryId));
+    // 3. 查询推荐日记
+    const tagRecommendList = await this.prisma.diary.findMany({
+      where: {
+        published: true,
+        status: 'Approved',
+        tags: { some: { id: { in: tagIds } } },
+        id: { notIn: Array.from(likedDiaryIdSet) },
+      },
+      orderBy: [
+        { likeCount: 'desc' },
+        { viewCount: 'desc' },
+        { publishedAt: 'desc' },
+      ],
+      select: diarySelect,
+      skip: (page - 1) * size,
+      take: size,
+    });
+    // 4. 如果不足size，补全热门
+    let list = tagRecommendList;
+    if (list.length < size) {
+      const excludeIds = new Set([
+        ...list.map((d) => d.id),
+        ...likedDiaryIdSet,
+      ]);
+      const hotList = await this.prisma.diary.findMany({
+        where: {
+          published: true,
+          status: 'Approved',
+          id: { notIn: Array.from(excludeIds) },
+        },
+        orderBy: [
+          { likeCount: 'desc' },
+          { viewCount: 'desc' },
+          { publishedAt: 'desc' },
+        ],
+        select: diarySelect,
+        take: size - list.length,
+      });
+      list = [...list, ...hotList];
+    }
+    // 5. 统计总数（相关+热门）
+    const total = await this.prisma.diary.count({
+      where: {
+        published: true,
+        status: 'Approved',
+        OR: [
+          {
+            tags: { some: { id: { in: tagIds } } },
+            id: { notIn: Array.from(likedDiaryIdSet) },
+          },
+          { id: { notIn: Array.from(likedDiaryIdSet) } },
+        ],
+      },
+    });
+    const totalPage = Math.ceil(total / size);
+    return { list, total, page, size, totalPage };
+  }
 }

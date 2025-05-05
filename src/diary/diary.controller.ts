@@ -20,6 +20,7 @@ import { ReviewDiaryQueryDto } from './dto/review-diary-query.dto';
 import { ReviewDiaryInput } from './dto/review-diary.input';
 import { UpdateDiaryPublishInput } from './dto/update-diary-publish.input';
 import { UpdateDiaryInput } from './dto/update-diary.input';
+import { GetUserDiariesQueryDto } from './dto/get-user-diaries-query.dto';
 
 @Controller('diary')
 export class DiaryController {
@@ -29,6 +30,29 @@ export class DiaryController {
   @Post()
   async create(@Body() createDiaryInput: CreateDiaryInput, @Req() req) {
     return this.diaryService.create(createDiaryInput, req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard, ReviewerGuard)
+  @Get('review-list')
+  async getReviewList(
+    @Query(new ValidationPipe({ transform: true, whitelist: true }))
+    query: ReviewDiaryQueryDto,
+  ) {
+    return this.diaryService.reviewList(query);
+  }
+
+  @Get('recommend')
+  @UseGuards(OptionalJwtAuthGuard)
+  async recommendDiaries(
+    @Query(new ValidationPipe({ transform: true, whitelist: true }))
+    query: GetUserDiariesQueryDto,
+    @Req() req,
+  ) {
+    return this.diaryService.recommendDiaries(
+      query.page,
+      query.size,
+      req.user?.id,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -72,14 +96,5 @@ export class DiaryController {
   @UseGuards(OptionalJwtAuthGuard)
   async getDiaryDetail(@Param('id') id: string, @Req() req) {
     return this.diaryService.getDiaryDetail(id, req.user?.id);
-  }
-
-  @UseGuards(JwtAuthGuard, ReviewerGuard)
-  @Get('review-list')
-  async getReviewList(
-    @Query(new ValidationPipe({ transform: true, whitelist: true }))
-    query: ReviewDiaryQueryDto,
-  ) {
-    return this.diaryService.reviewList(query);
   }
 }
