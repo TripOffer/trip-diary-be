@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { verify } from 'argon2';
+import { hash, verify } from 'argon2';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { User } from 'src/user/entities/user.entity';
 import { LoginInput } from './dto/login.input';
@@ -13,6 +13,9 @@ import { RegisterInput } from './dto/register.input';
 import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../common/redis.service';
+import { DeleteAccountInput } from './dto/delete-account.input';
+import { UpdatePasswordInput } from './dto/update-password.input';
+import { ResetPasswordInput } from './dto/reset-password.input';
 
 @Injectable()
 export class AuthService {
@@ -33,24 +36,34 @@ export class AuthService {
     return user;
   }
 
-  async generateToken(userId: number) {
-    const payload: AuthJwtPayload = { sub: userId };
+  async generateToken(user: User) {
+    const payload: AuthJwtPayload = { sub: user.id, email: user.email };
     const accessToken = await this.jwtService.signAsync(payload);
     return accessToken;
   }
 
+  async validateToken(token: string) {
+    try {
+      const payload = await this.jwtService.verifyAsync(token);
+      return payload;
+    } catch (error) {
+      throw new UnauthorizedException('无效的token');
+    }
+  }
+
+  async validateJwtUser(userId: number) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('用户不存在');
+    return user;
+  }
+
   async login(user: User) {
-    const accessToken = await this.generateToken(user.id);
+    const accessToken = await this.generateToken(user);
+    // 统一返回 user 的结构，去除 password 字段
+    const { password, ...userInfo } = user;
     return {
       token: accessToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        avatar: user.avatar,
-        bio: user.bio,
-        role: user.role,
-      },
+      user: userInfo,
     };
   }
 
@@ -79,12 +92,11 @@ export class AuthService {
     const user = await this.prisma.user.create({
       data: {
         email: registerInput.email,
-        password: await require('argon2').hash(registerInput.password),
+        password: await hash(registerInput.password),
         name,
-        avatar: registerInput.avatar,
-        bio: registerInput.bio,
       },
     });
+    // 统一返回 user 的结构
     return this.login(user);
   }
 
@@ -124,5 +136,71 @@ export class AuthService {
       .getClient()
       .get(`verify:email:${email}`);
     return redisCode === code;
+  }
+
+  async deleteAccount(user: User, input: DeleteAccountInput) {
+    if (!user) throw new BadRequestException('用户不存在');
+
+    // 校验验证码
+    const valid = await this.verifyEmailCode(user.email, input.code);
+    if (!valid) throw new BadRequestException('验证码错误或已过期');
+    // 校验通过后删除验证码
+    await this.redisService.getClient().del(`verify:email:${user.email}`);
+
+    // 校验密码
+    const isPasswordMatched = await require('argon2').verify(
+      user.password,
+      input.password,
+    );
+    if (!isPasswordMatched) throw new UnauthorizedException('密码错误');
+
+    // 删除用户
+    await this.prisma.user.delete({ where: { id: user.id } });
+    return true;
+  }
+
+  async updatePassword(user: User, input: UpdatePasswordInput) {
+    if (!user) throw new BadRequestException('用户不存在');
+
+    // 校验旧密码
+    const isPasswordMatched = await require('argon2').verify(
+      user.password,
+      input.oldPassword,
+    );
+    if (!isPasswordMatched) throw new BadRequestException('旧密码错误');
+
+    // 更新新密码
+    const newHashedPassword = await require('argon2').hash(input.newPassword);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { password: newHashedPassword },
+    });
+    return true;
+  }
+
+  async resetPassword(input: ResetPasswordInput) {
+    // 校验验证码
+    const redisCode = await this.redisService
+      .getClient()
+      .get(`verify:email:${input.email}`);
+    if (!redisCode || redisCode !== input.code) {
+      throw new BadRequestException('验证码错误或已过期');
+    }
+    // 校验通过后删除验证码
+    await this.redisService.getClient().del(`verify:email:${input.email}`);
+
+    // 查找用户
+    const user = await this.prisma.user.findUnique({
+      where: { email: input.email },
+    });
+    if (!user) throw new BadRequestException('用户不存在');
+
+    // 更新新密码
+    const newHashedPassword = await require('argon2').hash(input.newPassword);
+    await this.prisma.user.update({
+      where: { email: input.email },
+      data: { password: newHashedPassword },
+    });
+    return true;
   }
 }

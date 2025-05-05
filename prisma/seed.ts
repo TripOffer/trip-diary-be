@@ -25,8 +25,8 @@ async function main() {
   });
   const userIds = createdUsers.map((user) => user.id);
 
-  // 生成 Post 数据
-  const posts = Array.from({ length: 50 }).map(() => {
+  // 生成 Diary 数据
+  const diaries = Array.from({ length: 50 }).map(() => {
     const title = faker.lorem.sentence(5);
     const contentParagraphs = faker.lorem.paragraphs(3);
     return {
@@ -44,8 +44,8 @@ async function main() {
     };
   });
 
-  await prisma.post.createMany({
-    data: posts,
+  await prisma.diary.createMany({
+    data: diaries,
   });
 
   console.log(

@@ -25,6 +25,8 @@ jobs:
         run: |
           rsync -avz --delete \
             --exclude '.git' \
-            -e "ssh -o StrictHostKeyChecking=no" \
+            --exclude 'node_modules' \
+            --exclude '.env' \
+            -e "ssh -p ${{ secrets.REMOTE_PORT }} -o StrictHostKeyChecking=no" \
             ./ \
             ${{ secrets.REMOTE_USER }}@${{ secrets.REMOTE_HOST }}:${{ secrets.TARGET }}
