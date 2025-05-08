@@ -58,3 +58,43 @@ GET /stats/summary?type=diary_view&period=day&start=2025-05-01&end=2025-05-08
 ## 支持的 type 列表
 
 详见 [docs/track/README.md](./track/README.md)
+
+---
+
+## 管理后台统计字段说明（getAdminStats / getReviewerStats 返回结构）
+
+### user（用户相关统计，仅 getAdminStats 返回）
+
+- `total`：用户总数
+- `today`：今日新增用户数
+- `active7d`：近7天活跃用户数（有登录、发帖、评论、浏览行为的用户）
+
+### diary（日记相关统计）
+
+- `total`：日记总数
+- `today`：今日新增日记数
+- `pending`：待审核日记数
+- `approved`：已通过审核日记数
+- `rejected`：审核未通过日记数
+- `viewTotal`：日记总浏览量
+- `likeTotal`：日记总点赞数
+- `favoriteTotal`：日记总收藏数
+- `shareTotal`：日记总分享数
+
+### comment（评论相关统计）
+
+- `total`：评论总数
+- `today`：今日新增评论数
+- `likeTotal`：评论总点赞数
+- `replyTotal`：评论总回复数
+
+### tag（标签相关统计）
+
+- `total`：标签总数
+- `viewTotal`：标签总浏览量
+
+### audit（审核相关统计，与日记审核状态一致）
+
+- `pending`：待审核日记数
+- `approved`：已通过审核日记数
+- `rejected`：审核未通过日记数
