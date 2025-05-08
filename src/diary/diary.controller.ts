@@ -97,4 +97,9 @@ export class DiaryController {
   async getDiaryDetail(@Param('id') id: string, @Req() req) {
     return this.diaryService.getDiaryDetail(id, req.user?.id);
   }
+
+  @Post(':id/share')
+  async shareDiary(@Param('id') id: string) {
+    return this.diaryService.shareDiary(id);
+  }
 }

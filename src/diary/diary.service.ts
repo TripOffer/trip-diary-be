@@ -18,12 +18,14 @@ import { UpdateDiaryInput } from './dto/update-diary.input';
 import { TagService } from '../tag/tag.service';
 import { generateSlug } from '../common/slug.util';
 import { ReviewDiaryQueryDto } from './dto/review-diary-query.dto';
+import { TrackService } from '../common/track.service';
 
 @Injectable()
 export class DiaryService {
   constructor(
     private prisma: PrismaService,
     private tagService: TagService,
+    private trackService: TrackService, // 新增注入
   ) {}
 
   async create(createDiaryInput: CreateDiaryInput, authorId: number) {
@@ -230,6 +232,10 @@ export class DiaryService {
       select: diaryDetailSelect,
     });
     if (!diary) throw new NotFoundException('日记不存在');
+
+    // 埋点：调用 TrackService 统一处理
+    await this.trackService.trackDiaryView(id, userId, diary.authorId);
+
     let isLiked: boolean | undefined = undefined;
     let isFavorited: boolean | undefined = undefined;
     let isFollowedAuthor: boolean | undefined = undefined;
@@ -411,5 +417,10 @@ export class DiaryService {
     });
     const totalPage = Math.ceil(total / size);
     return { list, total, page, size, totalPage };
+  }
+
+  async shareDiary(id: string) {
+    await this.trackService.trackDiaryShare(id);
+    return { message: '分享已记录' };
   }
 }
