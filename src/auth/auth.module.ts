@@ -6,6 +6,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RedisService } from 'src/common/redis.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { TrackStatsService } from 'src/track/track-stats.service';
 
 @Module({
   imports: [
@@ -18,7 +19,13 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       }),
     }),
   ],
-  providers: [AuthService, PrismaService, RedisService, JwtStrategy],
+  providers: [
+    AuthService,
+    PrismaService,
+    RedisService,
+    JwtStrategy,
+    TrackStatsService,
+  ],
   controllers: [AuthController],
 })
 export class AuthModule {}

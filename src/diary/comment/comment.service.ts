@@ -6,10 +6,14 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateCommentInput } from './dto/create-comment.input';
 import { GetDiaryCommentsQueryDto } from './dto/get-diary-comments-query.dto';
+import { TrackStatsService } from '../../track/track-stats.service';
 
 @Injectable()
 export class CommentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private trackStatsService: TrackStatsService,
+  ) {}
 
   async createComment(
     diaryId: string,
@@ -50,6 +54,7 @@ export class CommentService {
           data: { replyCount: { increment: 1 } },
         });
       }
+      await this.trackStatsService.incr('diary_comment', new Date(), 1);
       return comment;
     });
   }
@@ -192,6 +197,8 @@ export class CommentService {
         data: { likeCount: { increment: 1 } },
       }),
     ]);
+    // 埋点：评论点赞
+    await this.trackStatsService.incr('comment_like', new Date(), 1);
     return { message: '点赞成功' };
   }
 
@@ -216,6 +223,8 @@ export class CommentService {
         data: { likeCount: { decrement: 1 } },
       }),
     ]);
+    // 埋点：评论取消点赞
+    await this.trackStatsService.incr('comment_like', new Date(), -1);
     return { message: '已取消点赞' };
   }
 }

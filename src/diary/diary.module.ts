@@ -7,6 +7,8 @@ import { DiaryService } from './diary.service';
 import { FavoriteModule } from './favorite/favorite.module';
 import { LikeModule } from './like/like.module';
 import { SearchModule } from './search/search.module';
+import { TrackService } from 'src/track/track.service';
+import { TrackStatsService } from 'src/track/track-stats.service';
 
 @Module({
   imports: [
@@ -16,7 +18,7 @@ import { SearchModule } from './search/search.module';
     FavoriteModule,
     SearchModule,
   ],
-  providers: [DiaryService, TagService],
+  providers: [DiaryService, TagService, TrackService, TrackStatsService],
   controllers: [DiaryController],
   exports: [DiaryService],
 })

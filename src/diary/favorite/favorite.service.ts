@@ -4,10 +4,14 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { TrackStatsService } from '../../track/track-stats.service';
 
 @Injectable()
 export class FavoriteService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private trackStatsService: TrackStatsService,
+  ) {}
 
   async favoriteDiary(userId: number, diaryId: string) {
     const diary = await this.prisma.diary.findUnique({
@@ -28,6 +32,7 @@ export class FavoriteService {
       data: { favoriteCount: { increment: 1 } },
       select: { id: true },
     });
+    await this.trackStatsService.incr('diary_favorite', new Date(), 1);
     return { message: '收藏成功' };
   }
 
@@ -45,6 +50,7 @@ export class FavoriteService {
       data: { favoriteCount: { decrement: 1 } },
       select: { id: true },
     });
+    await this.trackStatsService.incr('diary_favorite', new Date(), -1);
     return { message: '已取消收藏' };
   }
 }

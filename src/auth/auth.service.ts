@@ -16,6 +16,7 @@ import { RedisService } from '../common/redis.service';
 import { DeleteAccountInput } from './dto/delete-account.input';
 import { UpdatePasswordInput } from './dto/update-password.input';
 import { ResetPasswordInput } from './dto/reset-password.input';
+import { TrackStatsService } from '../track/track-stats.service';
 
 @Injectable()
 export class AuthService {
@@ -24,6 +25,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private redisService: RedisService,
+    private trackStatsService: TrackStatsService,
   ) {}
   async validateLocalUser({ email, password }: LoginInput) {
     const user = await this.prisma.user.findUnique({ where: { email } });
@@ -96,6 +98,8 @@ export class AuthService {
         name,
       },
     });
+    // 埋点：用户注册
+    await this.trackStatsService.incr('user_register', new Date(), 1);
     // 统一返回 user 的结构
     return this.login(user);
   }
