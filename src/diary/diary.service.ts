@@ -18,7 +18,8 @@ import { UpdateDiaryInput } from './dto/update-diary.input';
 import { TagService } from '../tag/tag.service';
 import { generateSlug } from '../common/slug.util';
 import { ReviewDiaryQueryDto } from './dto/review-diary-query.dto';
-import { TrackService } from '../common/track.service';
+import { TrackService } from '../track/track.service';
+import { TrackStatsService } from '../track/track-stats.service';
 
 @Injectable()
 export class DiaryService {
@@ -26,6 +27,7 @@ export class DiaryService {
     private prisma: PrismaService,
     private tagService: TagService,
     private trackService: TrackService, // 新增注入
+    private trackStatsService: TrackStatsService,
   ) {}
 
   async create(createDiaryInput: CreateDiaryInput, authorId: number) {
@@ -54,6 +56,8 @@ export class DiaryService {
     if (!result) {
       throw new NotFoundException('日记创建失败');
     }
+    // 埋点：新增日记
+    await this.trackStatsService.incr('diary_create', new Date(), 1);
     return { message: '日记创建成功', id: result.id };
   }
 
@@ -235,6 +239,8 @@ export class DiaryService {
 
     // 埋点：调用 TrackService 统一处理
     await this.trackService.trackDiaryView(id, userId, diary.authorId);
+    // 埋点：TrackStats 日记浏览
+    await this.trackStatsService.incr('diary_view', new Date(), 1);
 
     let isLiked: boolean | undefined = undefined;
     let isFavorited: boolean | undefined = undefined;
@@ -421,6 +427,7 @@ export class DiaryService {
 
   async shareDiary(id: string) {
     await this.trackService.trackDiaryShare(id);
+    await this.trackStatsService.incr('diary_share', new Date(), 1);
     return { message: '分享已记录' };
   }
 }

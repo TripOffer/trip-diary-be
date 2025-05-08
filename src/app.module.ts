@@ -12,6 +12,7 @@ import { TagModule } from './tag/tag.module';
 import { UserModule } from './user/user.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { StatsModule } from './stats/stats.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { APP_GUARD } from '@nestjs/core';
     AuthModule,
     OssModule,
     ImageModule,
+    StatsModule,
   ],
   controllers: [AppController],
   providers: [

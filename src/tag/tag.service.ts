@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { diarySelect } from '../diary/common/diary.select';
+import { TrackStatsService } from 'src/track/track-stats.service';
 
 @Injectable()
 export class TagService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private trackStatsService: TrackStatsService,
+  ) {}
 
   /**
    * 根据标签名数组查找已存在的标签，并为不存在的标签创建新标签，返回所有标签的id对象数组
@@ -23,6 +27,8 @@ export class TagService {
       newTagNames.map((name) => this.prisma.tag.create({ data: { name } })),
     );
     const newTagIds = newTags.map((t) => ({ id: t.id }));
+    // 埋点：标签创建
+    await this.trackStatsService.incr('tag_create', new Date(), names.length);
     return [...existedTagIds, ...newTagIds];
   }
 
@@ -113,6 +119,8 @@ export class TagService {
       },
     });
     if (!tag) return null;
+    // 埋点：标签浏览
+    await this.trackStatsService.incr('tag_view', new Date(), 1);
     return {
       id: tag.id,
       name: tag.name,
