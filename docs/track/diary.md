@@ -1,5 +1,19 @@
 # 日记 Diary 埋点
 
+| 埋点类型 type  | 说明                 |
+| -------------- | -------------------- |
+| diary_create   | 新增日记数           |
+| diary_view     | 日记浏览量           |
+| diary_like     | 日记点赞量           |
+| diary_favorite | 日记收藏量           |
+| diary_share    | 日记分享量           |
+| diary_comment  | 日记评论数           |
+| diary_approved | 审核通过日记数       |
+| diary_rejected | 审核拒绝日记数       |
+| diary_pending  | 待审核日记数（快照） |
+
+> 说明：所有埋点均以 type+date+value 记录，便于统计折线图和趋势。
+
 - [x] **详情页浏览量 viewCount**
 
   - 字段：`Diary.viewCount`
@@ -36,7 +50,7 @@
   - 埋点方式：评论时 +1，删除评论时 -1
   - 注意事项：所有评论都计数，无需区分是否为顶级评论
 
-- [ ] **分享 shareCount**
+- [x] **分享 shareCount**
   - 字段：`Diary.shareCount`
   - 触发接口：POST `/diary/:id/share`
   - 埋点方式：每次分享 +1

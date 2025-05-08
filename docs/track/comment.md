@@ -1,5 +1,13 @@
 # 评论 Comment 埋点
 
+| 埋点类型 type  | 说明       |
+| -------------- | ---------- |
+| comment_create | 新增评论数 |
+| comment_like   | 评论点赞量 |
+| comment_reply  | 评论回复数 |
+
+> 说明：所有埋点均以 type+date+value 记录，便于统计折线图和趋势。
+
 - [x] **评论点赞 likeCount**
 
   - 字段：`Comment.likeCount`

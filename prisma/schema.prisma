@@ -174,3 +174,14 @@ model UserFollow {
   @@index([followerId])
   @@index([followingId])
 }
+
+model TrackStats {
+  id        Int      @id @default(autoincrement())
+  type      String // 如 user_total, diary_total, diary_view, tag_view, comment_total, ...
+  date      DateTime // 统计日期（如2025-05-08 00:00:00，按天分片）
+  value     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([type, date])
+}
