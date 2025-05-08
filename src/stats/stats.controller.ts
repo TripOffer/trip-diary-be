@@ -18,8 +18,8 @@ export class StatsController {
     private readonly trackStatsService: TrackStatsService,
   ) {}
 
-  @Get('admin')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @Get('admin')
   async getAdminStats(@Req() req) {
     return this.statsService.getAdminStats();
   }
@@ -30,6 +30,7 @@ export class StatsController {
     return this.statsService.getReviewerStats();
   }
 
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Get('summary')
   async getStatsSummary(
     @Query(new ValidationPipe({ transform: true, whitelist: true }))
