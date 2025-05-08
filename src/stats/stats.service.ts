@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TrackStatsService } from '../track/track-stats.service';
 
 @Injectable()
 export class StatsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private trackStats: TrackStatsService,
+  ) {}
 
   async getAdminStats() {
     const today = new Date();
@@ -16,33 +20,30 @@ export class StatsService {
 
     // 用户统计
     const userTotal = await this.prisma.user.count();
-    const userToday = await this.prisma.user.count({
-      where: { createdAt: { gte: today, lt: tomorrow } },
-    });
-    // 近7天活跃用户（有登录、发帖、评论、浏览行为）
-    const activeUserSet = new Set<number>();
-    const diaryAuthors = await this.prisma.user.findMany({
-      where: { diaries: { some: { createdAt: { gte: last7Days } } } },
-      select: { id: true },
-    });
-    diaryAuthors.forEach((u) => activeUserSet.add(u.id));
-    const commentAuthors = await this.prisma.user.findMany({
-      where: { comments: { some: { createdAt: { gte: last7Days } } } },
-      select: { id: true },
-    });
-    commentAuthors.forEach((u) => activeUserSet.add(u.id));
-    const viewUsers = await this.prisma.viewHistory.findMany({
-      where: { viewedAt: { gte: last7Days } },
-      select: { userId: true },
-    });
-    viewUsers.forEach((v) => activeUserSet.add(v.userId));
-    const activeUserCount = activeUserSet.size;
+    const userTodayRows = await this.trackStats.getRange(
+      'user_register',
+      today,
+      today,
+    );
+    const userToday = userTodayRows.length > 0 ? userTodayRows[0].value : 0;
+    const active7dRows = await this.trackStats.getRange(
+      'user_active',
+      last7Days,
+      today,
+    );
+    const activeUserCount = active7dRows.reduce(
+      (sum, row) => sum + row.value,
+      0,
+    );
 
     // 日记统计
     const diaryTotal = await this.prisma.diary.count();
-    const diaryToday = await this.prisma.diary.count({
-      where: { createdAt: { gte: today, lt: tomorrow } },
-    });
+    const diaryTodayRows = await this.trackStats.getRange(
+      'diary_create',
+      today,
+      today,
+    );
+    const diaryToday = diaryTodayRows.length > 0 ? diaryTodayRows[0].value : 0;
     const diaryPending = await this.prisma.diary.count({
       where: { status: 'Pending' },
     });
@@ -52,36 +53,47 @@ export class StatsService {
     const diaryRejected = await this.prisma.diary.count({
       where: { status: 'Rejected' },
     });
-    const diaryViewTotal = await this.prisma.diary.aggregate({
-      _sum: { viewCount: true },
-    });
-    const diaryLikeTotal = await this.prisma.diary.aggregate({
-      _sum: { likeCount: true },
-    });
-    const diaryFavoriteTotal = await this.prisma.diary.aggregate({
-      _sum: { favoriteCount: true },
-    });
-    const diaryShareTotal = await this.prisma.diary.aggregate({
-      _sum: { shareCount: true },
-    });
+    const diaryViewTotal =
+      (await this.prisma.diary.aggregate({ _sum: { viewCount: true } }))._sum
+        .viewCount || 0;
+    const diaryLikeTotal =
+      (await this.prisma.diary.aggregate({ _sum: { likeCount: true } }))._sum
+        .likeCount || 0;
+    const diaryFavoriteTotal =
+      (await this.prisma.diary.aggregate({ _sum: { favoriteCount: true } }))
+        ._sum.favoriteCount || 0;
+    const diaryShareTotal =
+      (await this.prisma.diary.aggregate({ _sum: { shareCount: true } }))._sum
+        .shareCount || 0;
 
     // 评论统计
     const commentTotal = await this.prisma.comment.count();
-    const commentToday = await this.prisma.comment.count({
-      where: { createdAt: { gte: today, lt: tomorrow } },
-    });
-    const commentLikeTotal = await this.prisma.comment.aggregate({
-      _sum: { likeCount: true },
-    });
-    const commentReplyTotal = await this.prisma.comment.aggregate({
-      _sum: { replyCount: true },
-    });
+    const commentTodayRows = await this.trackStats.getRange(
+      'comment_create',
+      today,
+      today,
+    );
+    const commentToday =
+      commentTodayRows.length > 0 ? commentTodayRows[0].value : 0;
+    const commentLikeTotal =
+      (await this.prisma.comment.aggregate({ _sum: { likeCount: true } }))._sum
+        .likeCount || 0;
+    const commentReplyTotal =
+      (await this.prisma.comment.aggregate({ _sum: { replyCount: true } }))._sum
+        .replyCount || 0;
 
     // 标签统计
     const tagTotal = await this.prisma.tag.count();
-    const tagViewTotal = await this.prisma.tag.aggregate({
-      _sum: { viewCount: true },
-    });
+    const tagCreateRows = await this.trackStats.getRange(
+      'tag_create',
+      today,
+      today,
+    );
+    const tagCreateToday =
+      tagCreateRows.length > 0 ? tagCreateRows[0].value : 0;
+    const tagViewTotal =
+      (await this.prisma.tag.aggregate({ _sum: { viewCount: true } }))._sum
+        .viewCount || 0;
 
     return {
       user: {
@@ -95,20 +107,21 @@ export class StatsService {
         pending: diaryPending,
         approved: diaryApproved,
         rejected: diaryRejected,
-        viewTotal: diaryViewTotal._sum.viewCount || 0,
-        likeTotal: diaryLikeTotal._sum.likeCount || 0,
-        favoriteTotal: diaryFavoriteTotal._sum.favoriteCount || 0,
-        shareTotal: diaryShareTotal._sum.shareCount || 0,
+        viewTotal: diaryViewTotal,
+        likeTotal: diaryLikeTotal,
+        favoriteTotal: diaryFavoriteTotal,
+        shareTotal: diaryShareTotal,
       },
       comment: {
         total: commentTotal,
         today: commentToday,
-        likeTotal: commentLikeTotal._sum.likeCount || 0,
-        replyTotal: commentReplyTotal._sum.replyCount || 0,
+        likeTotal: commentLikeTotal,
+        replyTotal: commentReplyTotal,
       },
       tag: {
         total: tagTotal,
-        viewTotal: tagViewTotal._sum.viewCount || 0,
+        createToday: tagCreateToday,
+        viewTotal: tagViewTotal,
       },
       audit: {
         pending: diaryPending,
@@ -126,9 +139,12 @@ export class StatsService {
 
     // 日记统计
     const diaryTotal = await this.prisma.diary.count();
-    const diaryToday = await this.prisma.diary.count({
-      where: { createdAt: { gte: today, lt: tomorrow } },
-    });
+    const diaryTodayRows = await this.trackStats.getRange(
+      'diary_create',
+      today,
+      today,
+    );
+    const diaryToday = diaryTodayRows.length > 0 ? diaryTodayRows[0].value : 0;
     const diaryPending = await this.prisma.diary.count({
       where: { status: 'Pending' },
     });
@@ -138,36 +154,47 @@ export class StatsService {
     const diaryRejected = await this.prisma.diary.count({
       where: { status: 'Rejected' },
     });
-    const diaryViewTotal = await this.prisma.diary.aggregate({
-      _sum: { viewCount: true },
-    });
-    const diaryLikeTotal = await this.prisma.diary.aggregate({
-      _sum: { likeCount: true },
-    });
-    const diaryFavoriteTotal = await this.prisma.diary.aggregate({
-      _sum: { favoriteCount: true },
-    });
-    const diaryShareTotal = await this.prisma.diary.aggregate({
-      _sum: { shareCount: true },
-    });
+    const diaryViewTotal =
+      (await this.prisma.diary.aggregate({ _sum: { viewCount: true } }))._sum
+        .viewCount || 0;
+    const diaryLikeTotal =
+      (await this.prisma.diary.aggregate({ _sum: { likeCount: true } }))._sum
+        .likeCount || 0;
+    const diaryFavoriteTotal =
+      (await this.prisma.diary.aggregate({ _sum: { favoriteCount: true } }))
+        ._sum.favoriteCount || 0;
+    const diaryShareTotal =
+      (await this.prisma.diary.aggregate({ _sum: { shareCount: true } }))._sum
+        .shareCount || 0;
 
     // 评论统计
     const commentTotal = await this.prisma.comment.count();
-    const commentToday = await this.prisma.comment.count({
-      where: { createdAt: { gte: today, lt: tomorrow } },
-    });
-    const commentLikeTotal = await this.prisma.comment.aggregate({
-      _sum: { likeCount: true },
-    });
-    const commentReplyTotal = await this.prisma.comment.aggregate({
-      _sum: { replyCount: true },
-    });
+    const commentTodayRows = await this.trackStats.getRange(
+      'comment_create',
+      today,
+      today,
+    );
+    const commentToday =
+      commentTodayRows.length > 0 ? commentTodayRows[0].value : 0;
+    const commentLikeTotal =
+      (await this.prisma.comment.aggregate({ _sum: { likeCount: true } }))._sum
+        .likeCount || 0;
+    const commentReplyTotal =
+      (await this.prisma.comment.aggregate({ _sum: { replyCount: true } }))._sum
+        .replyCount || 0;
 
     // 标签统计
     const tagTotal = await this.prisma.tag.count();
-    const tagViewTotal = await this.prisma.tag.aggregate({
-      _sum: { viewCount: true },
-    });
+    const tagCreateRows = await this.trackStats.getRange(
+      'tag_create',
+      today,
+      today,
+    );
+    const tagCreateToday =
+      tagCreateRows.length > 0 ? tagCreateRows[0].value : 0;
+    const tagViewTotal =
+      (await this.prisma.tag.aggregate({ _sum: { viewCount: true } }))._sum
+        .viewCount || 0;
 
     return {
       diary: {
@@ -176,20 +203,21 @@ export class StatsService {
         pending: diaryPending,
         approved: diaryApproved,
         rejected: diaryRejected,
-        viewTotal: diaryViewTotal._sum.viewCount || 0,
-        likeTotal: diaryLikeTotal._sum.likeCount || 0,
-        favoriteTotal: diaryFavoriteTotal._sum.favoriteCount || 0,
-        shareTotal: diaryShareTotal._sum.shareCount || 0,
+        viewTotal: diaryViewTotal,
+        likeTotal: diaryLikeTotal,
+        favoriteTotal: diaryFavoriteTotal,
+        shareTotal: diaryShareTotal,
       },
       comment: {
         total: commentTotal,
         today: commentToday,
-        likeTotal: commentLikeTotal._sum.likeCount || 0,
-        replyTotal: commentReplyTotal._sum.replyCount || 0,
+        likeTotal: commentLikeTotal,
+        replyTotal: commentReplyTotal,
       },
       tag: {
         total: tagTotal,
-        viewTotal: tagViewTotal._sum.viewCount || 0,
+        createToday: tagCreateToday,
+        viewTotal: tagViewTotal,
       },
       audit: {
         pending: diaryPending,
