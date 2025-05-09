@@ -25,6 +25,7 @@ import { GetUserFollowListQueryDto } from './dto/get-user-follow-list-query.dto'
 import { GetUserIdParamDto } from './dto/get-user-id-param.dto';
 import { DiaryService } from '../diary/diary.service';
 import { GetUserDiariesQueryDto } from 'src/diary/dto/get-user-diaries-query.dto';
+import { OptionalJwtAuthGuard } from 'src/auth/guards/jwt-auth/optional-jwt-auth.guard';
 
 @Controller('user')
 export class UserController {
@@ -75,7 +76,11 @@ export class UserController {
     @Query(new ValidationPipe({ transform: true }))
     query: GetUserDiariesQueryDto,
   ) {
-    return this.diaryService.getAllUserDiaries(req.user.id, query);
+    return this.diaryService.getAllUserDiaries(
+      req.user.id,
+      query,
+      req.user?.id,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -155,11 +160,13 @@ export class UserController {
   }
 
   @Get(':id/diary')
+  @UseGuards(OptionalJwtAuthGuard)
   async getUserDiaries(
     @Param(new ValidationPipe({ transform: true })) param: GetUserIdParamDto,
     @Query(new ValidationPipe({ transform: true }))
     query: GetUserDiariesQueryDto,
+    @Request() req: any,
   ) {
-    return this.diaryService.getUserDiaries(param.id, query);
+    return this.diaryService.getUserDiaries(param.id, query, req.user?.id);
   }
 }

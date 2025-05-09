@@ -137,4 +137,57 @@ export class OssService {
     });
     return { success: true, ossObject };
   }
+
+  /**
+   * 根据 key 查询 OSS 文件元信息
+   */
+  async getOssObjectByKey(key: string) {
+    if (!key) return null;
+    const meta = await this.prisma.ossObject.findUnique({ where: { key } });
+    return this.formatOssMeta(meta);
+  }
+
+  /**
+   * 批量获取 OSS 文件元信息
+   */
+  async getOssObjectsByKeys(keys: string[]): Promise<Record<string, any>> {
+    if (!keys || keys.length === 0) return {};
+    const list = await this.prisma.ossObject.findMany({
+      where: { key: { in: keys } },
+    });
+    const map: Record<string, any> = {};
+    for (const obj of list) {
+      map[obj.key] = this.formatOssMeta(obj);
+    }
+    return map;
+  }
+
+  /**
+   * 格式化 OSS 元信息，根据类型裁剪字段
+   */
+  formatOssMeta(meta: any) {
+    if (!meta) return null;
+    const base = {
+      id: meta.id,
+      key: meta.key,
+      userId: meta.userId,
+      ext: meta.ext,
+      type: meta.type,
+      createdAt: meta.createdAt,
+    };
+    const imageExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+    const videoExts = ['mp4', 'webm'];
+    if (imageExts.includes(meta.ext)) {
+      return { ...base, width: meta.width, height: meta.height };
+    }
+    if (videoExts.includes(meta.ext)) {
+      return {
+        ...base,
+        width: meta.width,
+        height: meta.height,
+        duration: meta.duration,
+      };
+    }
+    return base;
+  }
 }
