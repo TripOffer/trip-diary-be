@@ -21,23 +21,51 @@ export class UserService {
     let { password, name, ...user } = createUserInput;
     const hashedPassword = await hash(password);
 
-    if (!name) {
-      name = '旅行者' + Math.floor(Math.random() * 10000).toString();
-    }
-
-    return this.prisma.user
-      .create({
-        data: {
-          ...user,
-          name,
-          password: hashedPassword,
-        },
-      })
-      .catch((e) => {
-        if (e.code === 'P2002') {
-          throw new Error('用户已存在');
-        }
+    // 如果没有传 name，先用临时名注册，注册后再用 id 更新 name
+    let userName = name;
+    let createdUser;
+    if (!userName) {
+      // 用时间戳临时名，避免 unique 冲突
+      userName = '旅行者' + Date.now();
+      createdUser = await this.prisma.user
+        .create({
+          data: {
+            ...user,
+            name: userName,
+            password: hashedPassword,
+          },
+          select: { id: true },
+        })
+        .catch((e) => {
+          if (e.code === 'P2002') {
+            throw new Error('用户已存在');
+          }
+          throw e;
+        });
+      // 用 id 更新 name
+      const finalName = '旅行者' + createdUser.id;
+      return this.prisma.user.update({
+        where: { id: createdUser.id },
+        data: { name: finalName },
+        select: fullInfoSelect,
       });
+    } else {
+      return this.prisma.user
+        .create({
+          data: {
+            ...user,
+            name: userName,
+            password: hashedPassword,
+          },
+          select: fullInfoSelect,
+        })
+        .catch((e) => {
+          if (e.code === 'P2002') {
+            throw new Error('用户已存在');
+          }
+          throw e;
+        });
+    }
   }
 
   async getUserRoleById(id: number) {
