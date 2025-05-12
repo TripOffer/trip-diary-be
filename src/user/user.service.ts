@@ -114,19 +114,25 @@ export class UserService {
       select,
     });
   }
-
   async updateBasicInfo(id: number, data: Partial<UpdateUserInput>) {
-    return this.prisma.user.update({
-      where: { id },
-      data,
-      select: {
-        id: true,
-        name: true,
-        bio: true,
-        gender: true,
-        birthday: true,
-      },
-    });
+    try {
+      return await this.prisma.user.update({
+        where: { id },
+        data,
+        select: {
+          id: true,
+          name: true,
+          bio: true,
+          gender: true,
+          birthday: true,
+        },
+      });
+    } catch (e: any) {
+      if (e.code === 'P2002' && e.meta?.target?.includes('name')) {
+        throw new ForbiddenException('用户名已存在');
+      }
+      throw e;
+    }
   }
 
   async updateAvatar(id: number, avatar: string) {
