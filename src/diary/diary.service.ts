@@ -455,71 +455,89 @@ export class DiaryService {
         likedDiaries.flatMap((like) => like.diary.tags.map((tag) => tag.id)),
       ),
     );
-    if (tagIds.length === 0) {
-      // 没有点赞过，退化为热门推荐
-      return this.recommendDiaries(page, size);
-    }
-    // 2. 推荐含有这些tag的日记，排除用户已点赞的
+    // 2. 找到用户已点赞的日记id
     const likedDiaryIds = await this.prisma.like.findMany({
       where: { userId },
       select: { diaryId: true },
     });
     const likedDiaryIdSet = new Set(likedDiaryIds.map((d) => d.diaryId));
-    // 3. 查询推荐日记
-    const tagRecommendList = await this.prisma.diary.findMany({
+    // 3. 查询所有未点赞过的相关tag日记id
+    let tagDiaryIds: string[] = [];
+    if (tagIds.length > 0) {
+      const tagDiaries = await this.prisma.diary.findMany({
+        where: {
+          published: true,
+          status: 'Approved',
+          tags: { some: { id: { in: tagIds } } },
+          id: { notIn: Array.from(likedDiaryIdSet) },
+        },
+        select: { id: true },
+      });
+      tagDiaryIds = tagDiaries.map((d) => d.id);
+    }
+    // 4. 查询所有未点赞过的热门日记id（不含tag相关）
+    const hotDiaries = await this.prisma.diary.findMany({
       where: {
         published: true,
         status: 'Approved',
-        tags: { some: { id: { in: tagIds } } },
-        id: { notIn: Array.from(likedDiaryIdSet) },
+        id: {
+          notIn: Array.from(new Set([...tagDiaryIds, ...likedDiaryIdSet])),
+        },
       },
       orderBy: [
         { likeCount: 'desc' },
         { viewCount: 'desc' },
         { publishedAt: 'desc' },
       ],
-      select: diarySelect,
-      skip: (page - 1) * size,
-      take: size,
+      select: { id: true },
     });
-    // 4. 如果不足size，补全热门
-    let list = tagRecommendList;
-    if (list.length < size) {
-      const excludeIds = new Set([
-        ...list.map((d) => d.id),
-        ...likedDiaryIdSet,
-      ]);
-      const hotList = await this.prisma.diary.findMany({
+    const allRecommendIds = [...tagDiaryIds, ...hotDiaries.map((d) => d.id)];
+    let pageIds = allRecommendIds.slice((page - 1) * size, page * size);
+    let list: any[] = [];
+    let total = allRecommendIds.length;
+
+    // 兜底：如果未点赞的推荐数量不足 size，则补充已点赞过的热门日记
+    if (pageIds.length < size) {
+      // 查询所有已点赞过的热门日记id
+      const likedHotDiaries = await this.prisma.diary.findMany({
         where: {
           published: true,
           status: 'Approved',
-          id: { notIn: Array.from(excludeIds) },
+          id: { in: Array.from(likedDiaryIdSet) },
         },
         orderBy: [
           { likeCount: 'desc' },
           { viewCount: 'desc' },
           { publishedAt: 'desc' },
         ],
-        select: diarySelect,
-        take: size - list.length,
+        select: { id: true },
       });
-      list = [...list, ...hotList];
+      // 只补充当前页缺少的数量，且避免重复
+      const fillCount = size - pageIds.length;
+      const fillIds = likedHotDiaries
+        .map((d) => d.id)
+        .filter((id) => !pageIds.includes(id))
+        .slice(0, fillCount);
+      pageIds = [...pageIds, ...fillIds];
+      // 兜底后，total 需要去重统计
+      const totalSet = new Set([
+        ...allRecommendIds,
+        ...likedHotDiaries.map((d) => d.id),
+      ]);
+      total = totalSet.size;
     }
-    // 5. 统计总数（相关+热门）
-    const total = await this.prisma.diary.count({
-      where: {
-        published: true,
-        status: 'Approved',
-        OR: [
-          {
-            tags: { some: { id: { in: tagIds } } },
-            id: { notIn: Array.from(likedDiaryIdSet) },
-          },
-          { id: { notIn: Array.from(likedDiaryIdSet) } },
-        ],
-      },
-    });
-    // 批量查 isLiked
+
+    // 查询详情
+    if (pageIds.length > 0) {
+      list = await this.prisma.diary.findMany({
+        where: { id: { in: pageIds } },
+        select: diarySelect,
+      });
+      // 保证顺序与pageIds一致
+      const idOrder = new Map(pageIds.map((id, idx) => [id, idx]));
+      list.sort((a, b) => idOrder.get(a.id)! - idOrder.get(b.id)!);
+    }
+    // 7. 批量查 isLiked 和 thumbnailMeta
     let likedIds: string[] = [];
     let thumbnailMetaMap: Record<string, any> = {};
     if (list.length > 0) {
