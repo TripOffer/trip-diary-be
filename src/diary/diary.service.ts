@@ -185,13 +185,15 @@ export class DiaryService {
     const { page = 1, size = 10 } = input;
     const [list, total] = await this.prisma.$transaction([
       this.prisma.diary.findMany({
-        where: { authorId: id },
+        where: { authorId: id, children: { none: {} } }, // 只返回没有children的日记
         orderBy: { createdAt: 'desc' },
         select: diarySelfSelect,
         skip: (page - 1) * size,
         take: size,
       }),
-      this.prisma.diary.count({ where: { authorId: id } }),
+      this.prisma.diary.count({
+        where: { authorId: id, children: { none: {} } },
+      }), // 统计也要加过滤条件
     ]);
     let likedIds: string[] = [];
     let thumbnailMetaMap: Record<string, any> = {};
