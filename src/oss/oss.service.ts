@@ -55,7 +55,7 @@ export class OssService {
 
   async generatePresignedUrl(
     dto: PresignInputDto,
-  ): Promise<{ url: string; key: string }> {
+  ): Promise<{ url: string; key: string; contentType: string }> {
     const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'webm'];
     const ext = dto.ext.toLowerCase();
     if (!allowedExts.includes(ext)) {
@@ -95,14 +95,15 @@ export class OssService {
     };
     await redisClient.set(redisKey, JSON.stringify(metaToSave), 'EX', 600);
 
+    const contentType = contentTypeMap[ext];
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Key: key,
-      ContentType: contentTypeMap[ext],
+      ContentType: contentType,
       Metadata,
     });
     const url = await getSignedUrl(this.client, command, { expiresIn: 300 });
-    return { url, key };
+    return { url, key, contentType };
   }
 
   async confirmUpload(key: string, userId: number) {
