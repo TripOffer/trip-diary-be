@@ -122,7 +122,11 @@ export class DiaryService {
   async deleteDiary(id: string, user: any) {
     const diary = await this.prisma.diary.findUnique({ where: { id } });
     if (!diary) throw new NotFoundException('日记不存在');
-    if (user.role !== 'Admin' && user.id !== diary.authorId) {
+    if (
+      user.role !== 'Admin' &&
+      user.role !== 'Super' &&
+      user.id !== diary.authorId
+    ) {
       throw new BadRequestException('无权限操作');
     }
     await this.prisma.diary.delete({ where: { id }, select: { id: true } });

@@ -374,4 +374,32 @@ export class UserService {
       totalPages: Math.ceil(total / size),
     };
   }
+
+  async getMyLikedDiaries(
+    userId: number,
+    query: { page?: number; size?: number },
+  ) {
+    const { page = 1, size = 10 } = query;
+    const [list, total] = await this.prisma.$transaction([
+      this.prisma.like.findMany({
+        where: { userId },
+        skip: (page - 1) * size,
+        take: size,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          diary: {
+            select: diarySelect,
+          },
+        },
+      }),
+      this.prisma.like.count({ where: { userId } }),
+    ]);
+    return {
+      list: list.map((item) => item.diary),
+      total,
+      page,
+      size,
+      totalPages: Math.ceil(total / size),
+    };
+  }
 }

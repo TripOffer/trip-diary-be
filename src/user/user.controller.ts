@@ -94,6 +94,16 @@ export class UserController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('me/like')
+  async getMyLikedDiaries(
+    @Request() req: any,
+    @Query(new ValidationPipe({ transform: true }))
+    query: GetUserDiariesQueryDto,
+  ) {
+    return this.userService.getMyLikedDiaries(req.user.id, query);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id/follow-stats')
   async getUserFollowStats(
     @Param(new ValidationPipe({ transform: true })) param: GetUserIdParamDto,
