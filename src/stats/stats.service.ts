@@ -36,8 +36,9 @@ export class StatsService {
       0,
     );
 
-    // 日记统计
-    const diaryTotal = await this.prisma.diary.count();
+    // 日记统计（只统计没有children的日记）
+    const diaryWhere = { children: { none: {} } };
+    const diaryTotal = await this.prisma.diary.count({ where: diaryWhere });
     const diaryTodayRows = await this.trackStats.getRange(
       'diary_create',
       today,
@@ -45,26 +46,42 @@ export class StatsService {
     );
     const diaryToday = diaryTodayRows.length > 0 ? diaryTodayRows[0].value : 0;
     const diaryPending = await this.prisma.diary.count({
-      where: { status: 'Pending' },
+      where: { ...diaryWhere, status: 'Pending' },
     });
     const diaryApproved = await this.prisma.diary.count({
-      where: { status: 'Approved' },
+      where: { ...diaryWhere, status: 'Approved' },
     });
     const diaryRejected = await this.prisma.diary.count({
-      where: { status: 'Rejected' },
+      where: { ...diaryWhere, status: 'Rejected' },
     });
     const diaryViewTotal =
-      (await this.prisma.diary.aggregate({ _sum: { viewCount: true } }))._sum
-        .viewCount || 0;
+      (
+        await this.prisma.diary.aggregate({
+          _sum: { viewCount: true },
+          where: diaryWhere,
+        })
+      )._sum.viewCount || 0;
     const diaryLikeTotal =
-      (await this.prisma.diary.aggregate({ _sum: { likeCount: true } }))._sum
-        .likeCount || 0;
+      (
+        await this.prisma.diary.aggregate({
+          _sum: { likeCount: true },
+          where: diaryWhere,
+        })
+      )._sum.likeCount || 0;
     const diaryFavoriteTotal =
-      (await this.prisma.diary.aggregate({ _sum: { favoriteCount: true } }))
-        ._sum.favoriteCount || 0;
+      (
+        await this.prisma.diary.aggregate({
+          _sum: { favoriteCount: true },
+          where: diaryWhere,
+        })
+      )._sum.favoriteCount || 0;
     const diaryShareTotal =
-      (await this.prisma.diary.aggregate({ _sum: { shareCount: true } }))._sum
-        .shareCount || 0;
+      (
+        await this.prisma.diary.aggregate({
+          _sum: { shareCount: true },
+          where: diaryWhere,
+        })
+      )._sum.shareCount || 0;
 
     // 评论统计
     const commentTotal = await this.prisma.comment.count();
@@ -137,8 +154,9 @@ export class StatsService {
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
 
-    // 日记统计
-    const diaryTotal = await this.prisma.diary.count();
+    // 日记统计（只统计没有children的日记）
+    const diaryWhere = { children: { none: {} } };
+    const diaryTotal = await this.prisma.diary.count({ where: diaryWhere });
     const diaryTodayRows = await this.trackStats.getRange(
       'diary_create',
       today,
@@ -146,26 +164,42 @@ export class StatsService {
     );
     const diaryToday = diaryTodayRows.length > 0 ? diaryTodayRows[0].value : 0;
     const diaryPending = await this.prisma.diary.count({
-      where: { status: 'Pending' },
+      where: { ...diaryWhere, status: 'Pending' },
     });
     const diaryApproved = await this.prisma.diary.count({
-      where: { status: 'Approved' },
+      where: { ...diaryWhere, status: 'Approved' },
     });
     const diaryRejected = await this.prisma.diary.count({
-      where: { status: 'Rejected' },
+      where: { ...diaryWhere, status: 'Rejected' },
     });
     const diaryViewTotal =
-      (await this.prisma.diary.aggregate({ _sum: { viewCount: true } }))._sum
-        .viewCount || 0;
+      (
+        await this.prisma.diary.aggregate({
+          _sum: { viewCount: true },
+          where: diaryWhere,
+        })
+      )._sum.viewCount || 0;
     const diaryLikeTotal =
-      (await this.prisma.diary.aggregate({ _sum: { likeCount: true } }))._sum
-        .likeCount || 0;
+      (
+        await this.prisma.diary.aggregate({
+          _sum: { likeCount: true },
+          where: diaryWhere,
+        })
+      )._sum.likeCount || 0;
     const diaryFavoriteTotal =
-      (await this.prisma.diary.aggregate({ _sum: { favoriteCount: true } }))
-        ._sum.favoriteCount || 0;
+      (
+        await this.prisma.diary.aggregate({
+          _sum: { favoriteCount: true },
+          where: diaryWhere,
+        })
+      )._sum.favoriteCount || 0;
     const diaryShareTotal =
-      (await this.prisma.diary.aggregate({ _sum: { shareCount: true } }))._sum
-        .shareCount || 0;
+      (
+        await this.prisma.diary.aggregate({
+          _sum: { shareCount: true },
+          where: diaryWhere,
+        })
+      )._sum.shareCount || 0;
 
     // 评论统计
     const commentTotal = await this.prisma.comment.count();

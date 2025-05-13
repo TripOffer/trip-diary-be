@@ -1,6 +1,8 @@
 import { Controller, Get, Query, Res } from '@nestjs/common';
 import { Response } from 'express';
+import { SkipThrottle } from '@nestjs/throttler';
 
+@SkipThrottle()
 @Controller('image')
 export class ImageController {
   @Get()

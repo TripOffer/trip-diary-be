@@ -20,6 +20,7 @@ import { generateSlug } from '../common/slug.util';
 import { ReviewDiaryQueryDto } from './dto/review-diary-query.dto';
 import { TrackService } from '../track/track.service';
 import { TrackStatsService } from '../track/track-stats.service';
+import { OssService } from '../oss/oss.service';
 
 @Injectable()
 export class DiaryService {
@@ -28,6 +29,7 @@ export class DiaryService {
     private tagService: TagService,
     private trackService: TrackService, // 新增注入
     private trackStatsService: TrackStatsService,
+    private ossService: OssService, // 新增注入
   ) {}
 
   async create(createDiaryInput: CreateDiaryInput, authorId: number) {
@@ -120,14 +122,22 @@ export class DiaryService {
   async deleteDiary(id: string, user: any) {
     const diary = await this.prisma.diary.findUnique({ where: { id } });
     if (!diary) throw new NotFoundException('日记不存在');
-    if (user.role !== 'Admin' && user.id !== diary.authorId) {
+    if (
+      user.role !== 'Admin' &&
+      user.role !== 'Super' &&
+      user.id !== diary.authorId
+    ) {
       throw new BadRequestException('无权限操作');
     }
     await this.prisma.diary.delete({ where: { id }, select: { id: true } });
     return { message: '删除成功' };
   }
 
-  async getUserDiaries(id: number, input: GetUserDiariesQueryDto) {
+  async getUserDiaries(
+    id: number,
+    input: GetUserDiariesQueryDto,
+    userId?: number,
+  ) {
     const { page = 1, size = 10 } = input;
     const [list, total] = await this.prisma.$transaction([
       this.prisma.diary.findMany({
@@ -141,24 +151,74 @@ export class DiaryService {
         where: { authorId: id, published: true, status: 'Approved' },
       }),
     ]);
+    let likedIds: string[] = [];
+    let thumbnailMetaMap: Record<string, any> = {};
+    if (list.length > 0) {
+      const thumbnailKeys = list
+        .map((d) => d.thumbnail)
+        .filter((k): k is string => !!k);
+      thumbnailMetaMap =
+        await this.ossService.getOssObjectsByKeys(thumbnailKeys);
+    }
+    if (userId && list.length > 0) {
+      const diaryIds = list.map((d) => d.id);
+      const likes = await this.prisma.like.findMany({
+        where: { userId, diaryId: { in: diaryIds } },
+        select: { diaryId: true },
+      });
+      likedIds = likes.map((l) => l.diaryId);
+    }
+    const resultList = list.map((d) => ({
+      ...d,
+      ...(userId ? { isLiked: likedIds.includes(d.id) } : {}),
+      ...(d.thumbnail ? { thumbnailMeta: thumbnailMetaMap[d.thumbnail] } : {}),
+    }));
     const totalPage = Math.ceil(total / size);
-    return { list, total, page, size, totalPage };
+    return { list: resultList, total, page, size, totalPage };
   }
 
-  async getAllUserDiaries(id: number, input: GetUserDiariesQueryDto) {
+  async getAllUserDiaries(
+    id: number,
+    input: GetUserDiariesQueryDto,
+    userId?: number,
+  ) {
     const { page = 1, size = 10 } = input;
     const [list, total] = await this.prisma.$transaction([
       this.prisma.diary.findMany({
-        where: { authorId: id },
+        where: { authorId: id, children: { none: {} } }, // 只返回没有children的日记
         orderBy: { createdAt: 'desc' },
         select: diarySelfSelect,
         skip: (page - 1) * size,
         take: size,
       }),
-      this.prisma.diary.count({ where: { authorId: id } }),
+      this.prisma.diary.count({
+        where: { authorId: id, children: { none: {} } },
+      }), // 统计也要加过滤条件
     ]);
+    let likedIds: string[] = [];
+    let thumbnailMetaMap: Record<string, any> = {};
+    if (list.length > 0) {
+      const thumbnailKeys = list
+        .map((d) => d.thumbnail)
+        .filter((k): k is string => !!k);
+      thumbnailMetaMap =
+        await this.ossService.getOssObjectsByKeys(thumbnailKeys);
+    }
+    if (userId && list.length > 0) {
+      const diaryIds = list.map((d) => d.id);
+      const likes = await this.prisma.like.findMany({
+        where: { userId, diaryId: { in: diaryIds } },
+        select: { diaryId: true },
+      });
+      likedIds = likes.map((l) => l.diaryId);
+    }
+    const resultList = list.map((d) => ({
+      ...d,
+      ...(userId ? { isLiked: likedIds.includes(d.id) } : {}),
+      ...(d.thumbnail ? { thumbnailMeta: thumbnailMetaMap[d.thumbnail] } : {}),
+    }));
     const totalPage = Math.ceil(total / size);
-    return { list, total, page, size, totalPage };
+    return { list: resultList, total, page, size, totalPage };
   }
 
   async reviewDiary(input: ReviewDiaryInput, reviewerId: number) {
@@ -230,17 +290,25 @@ export class DiaryService {
     });
   }
 
-  async getDiaryDetail(id: string, userId?: number) {
+  async getDiaryDetail(id: string, userId?: number, noHistory = false) {
     const diary = await this.prisma.diary.findUnique({
       where: { id },
       select: diaryDetailSelect,
     });
     if (!diary) throw new NotFoundException('日记不存在');
 
-    // 埋点：调用 TrackService 统一处理
-    await this.trackService.trackDiaryView(id, userId, diary.authorId);
-    // 埋点：TrackStats 日记浏览
-    await this.trackStatsService.incr('diary_view', new Date(), 1);
+    // 查询封面元信息
+    let thumbnailMeta: any = undefined;
+    if (diary.thumbnail) {
+      thumbnailMeta = await this.ossService.getOssObjectByKey(diary.thumbnail);
+    }
+
+    if (!noHistory) {
+      // 埋点：调用 TrackService 统一处理
+      await this.trackService.trackDiaryView(id, userId, diary.authorId);
+      // 埋点：TrackStats 日记浏览
+      await this.trackStatsService.incr('diary_view', new Date(), 1);
+    }
 
     let isLiked: boolean | undefined = undefined;
     let isFavorited: boolean | undefined = undefined;
@@ -269,10 +337,11 @@ export class DiaryService {
     return {
       ...diary,
       ...(userId ? { isLiked, isFavorited, isFollowedAuthor } : {}),
+      ...(thumbnailMeta ? { thumbnailMeta } : {}),
     };
   }
 
-  async reviewList(query: ReviewDiaryQueryDto) {
+  async reviewList(query: ReviewDiaryQueryDto, userId?: number) {
     const {
       status,
       authorId,
@@ -309,12 +378,35 @@ export class DiaryService {
           likeCount: true,
           favoriteCount: true,
           commentCount: true,
+          thumbnail: true,
         },
       }),
       this.prisma.diary.count({ where }),
     ]);
+    let likedIds: string[] = [];
+    let thumbnailMetaMap: Record<string, any> = {};
+    if (list.length > 0) {
+      const thumbnailKeys = list
+        .map((d) => d.thumbnail)
+        .filter((k): k is string => !!k);
+      thumbnailMetaMap =
+        await this.ossService.getOssObjectsByKeys(thumbnailKeys);
+    }
+    if (userId && list.length > 0) {
+      const diaryIds = list.map((d) => d.id);
+      const likes = await this.prisma.like.findMany({
+        where: { userId, diaryId: { in: diaryIds } },
+        select: { diaryId: true },
+      });
+      likedIds = likes.map((l) => l.diaryId);
+    }
+    const resultList = list.map((d) => ({
+      ...d,
+      ...(userId ? { isLiked: likedIds.includes(d.id) } : {}),
+      ...(d.thumbnail ? { thumbnailMeta: thumbnailMetaMap[d.thumbnail] } : {}),
+    }));
     const totalPage = Math.ceil(total / size);
-    return { list, total, page, size, totalPage };
+    return { list: resultList, total, page, size, totalPage };
   }
 
   async recommendDiaries(page = 1, size = 10, userId?: number) {
@@ -342,8 +434,22 @@ export class DiaryService {
           },
         }),
       ]);
+      let thumbnailMetaMap: Record<string, any> = {};
+      if (list.length > 0) {
+        const thumbnailKeys = list
+          .map((d) => d.thumbnail)
+          .filter((k): k is string => !!k);
+        thumbnailMetaMap =
+          await this.ossService.getOssObjectsByKeys(thumbnailKeys);
+      }
       const totalPage = Math.ceil(total / size);
-      return { list, total, page, size, totalPage };
+      const resultList = list.map((d) => ({
+        ...d,
+        ...(d.thumbnail
+          ? { thumbnailMeta: thumbnailMetaMap[d.thumbnail] }
+          : {}),
+      }));
+      return { list: resultList, total, page, size, totalPage };
     }
 
     // 已登录用户，优先推荐与点赞日记tag相关的
@@ -357,72 +463,113 @@ export class DiaryService {
         likedDiaries.flatMap((like) => like.diary.tags.map((tag) => tag.id)),
       ),
     );
-    if (tagIds.length === 0) {
-      // 没有点赞过，退化为热门推荐
-      return this.recommendDiaries(page, size);
-    }
-    // 2. 推荐含有这些tag的日记，排除用户已点赞的
+    // 2. 找到用户已点赞的日记id
     const likedDiaryIds = await this.prisma.like.findMany({
       where: { userId },
       select: { diaryId: true },
     });
     const likedDiaryIdSet = new Set(likedDiaryIds.map((d) => d.diaryId));
-    // 3. 查询推荐日记
-    const tagRecommendList = await this.prisma.diary.findMany({
+    // 3. 查询所有未点赞过的相关tag日记id
+    let tagDiaryIds: string[] = [];
+    if (tagIds.length > 0) {
+      const tagDiaries = await this.prisma.diary.findMany({
+        where: {
+          published: true,
+          status: 'Approved',
+          tags: { some: { id: { in: tagIds } } },
+          id: { notIn: Array.from(likedDiaryIdSet) },
+        },
+        select: { id: true },
+      });
+      tagDiaryIds = tagDiaries.map((d) => d.id);
+    }
+    // 4. 查询所有未点赞过的热门日记id（不含tag相关）
+    const hotDiaries = await this.prisma.diary.findMany({
       where: {
         published: true,
         status: 'Approved',
-        tags: { some: { id: { in: tagIds } } },
-        id: { notIn: Array.from(likedDiaryIdSet) },
+        id: {
+          notIn: Array.from(new Set([...tagDiaryIds, ...likedDiaryIdSet])),
+        },
       },
       orderBy: [
         { likeCount: 'desc' },
         { viewCount: 'desc' },
         { publishedAt: 'desc' },
       ],
-      select: diarySelect,
-      skip: (page - 1) * size,
-      take: size,
+      select: { id: true },
     });
-    // 4. 如果不足size，补全热门
-    let list = tagRecommendList;
-    if (list.length < size) {
-      const excludeIds = new Set([
-        ...list.map((d) => d.id),
-        ...likedDiaryIdSet,
-      ]);
-      const hotList = await this.prisma.diary.findMany({
+    const allRecommendIds = [...tagDiaryIds, ...hotDiaries.map((d) => d.id)];
+    let pageIds = allRecommendIds.slice((page - 1) * size, page * size);
+    let list: any[] = [];
+    let total = allRecommendIds.length;
+
+    // 兜底：如果未点赞的推荐数量不足 size，则补充已点赞过的热门日记
+    if (pageIds.length < size) {
+      // 查询所有已点赞过的热门日记id
+      const likedHotDiaries = await this.prisma.diary.findMany({
         where: {
           published: true,
           status: 'Approved',
-          id: { notIn: Array.from(excludeIds) },
+          id: { in: Array.from(likedDiaryIdSet) },
         },
         orderBy: [
           { likeCount: 'desc' },
           { viewCount: 'desc' },
           { publishedAt: 'desc' },
         ],
-        select: diarySelect,
-        take: size - list.length,
+        select: { id: true },
       });
-      list = [...list, ...hotList];
+      // 只补充当前页缺少的数量，且避免重复
+      const fillCount = size - pageIds.length;
+      const fillIds = likedHotDiaries
+        .map((d) => d.id)
+        .filter((id) => !pageIds.includes(id))
+        .slice(0, fillCount);
+      pageIds = [...pageIds, ...fillIds];
+      // 兜底后，total 需要去重统计
+      const totalSet = new Set([
+        ...allRecommendIds,
+        ...likedHotDiaries.map((d) => d.id),
+      ]);
+      total = totalSet.size;
     }
-    // 5. 统计总数（相关+热门）
-    const total = await this.prisma.diary.count({
-      where: {
-        published: true,
-        status: 'Approved',
-        OR: [
-          {
-            tags: { some: { id: { in: tagIds } } },
-            id: { notIn: Array.from(likedDiaryIdSet) },
-          },
-          { id: { notIn: Array.from(likedDiaryIdSet) } },
-        ],
-      },
-    });
+
+    // 查询详情
+    if (pageIds.length > 0) {
+      list = await this.prisma.diary.findMany({
+        where: { id: { in: pageIds } },
+        select: diarySelect,
+      });
+      // 保证顺序与pageIds一致
+      const idOrder = new Map(pageIds.map((id, idx) => [id, idx]));
+      list.sort((a, b) => idOrder.get(a.id)! - idOrder.get(b.id)!);
+    }
+    // 7. 批量查 isLiked 和 thumbnailMeta
+    let likedIds: string[] = [];
+    let thumbnailMetaMap: Record<string, any> = {};
+    if (list.length > 0) {
+      const thumbnailKeys = list
+        .map((d) => d.thumbnail)
+        .filter((k): k is string => !!k);
+      thumbnailMetaMap =
+        await this.ossService.getOssObjectsByKeys(thumbnailKeys);
+    }
+    if (userId && list.length > 0) {
+      const diaryIds = list.map((d) => d.id);
+      const likes = await this.prisma.like.findMany({
+        where: { userId, diaryId: { in: diaryIds } },
+        select: { diaryId: true },
+      });
+      likedIds = likes.map((l) => l.diaryId);
+    }
+    const resultList = list.map((d) => ({
+      ...d,
+      isLiked: likedIds.includes(d.id),
+      ...(d.thumbnail ? { thumbnailMeta: thumbnailMetaMap[d.thumbnail] } : {}),
+    }));
     const totalPage = Math.ceil(total / size);
-    return { list, total, page, size, totalPage };
+    return { list: resultList, total, page, size, totalPage };
   }
 
   async shareDiary(id: string) {

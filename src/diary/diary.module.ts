@@ -9,6 +9,7 @@ import { LikeModule } from './like/like.module';
 import { SearchModule } from './search/search.module';
 import { TrackService } from 'src/track/track.service';
 import { TrackStatsService } from 'src/track/track-stats.service';
+import { OssModule } from '../oss/oss.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { TrackStatsService } from 'src/track/track-stats.service';
     LikeModule,
     FavoriteModule,
     SearchModule,
+    OssModule,
   ],
   providers: [DiaryService, TagService, TrackService, TrackStatsService],
   controllers: [DiaryController],

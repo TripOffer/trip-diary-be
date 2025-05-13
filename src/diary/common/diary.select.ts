@@ -20,6 +20,7 @@ export const diarySelect = {
 export const diarySelfSelect = {
   id: true,
   authorId: true,
+  parentId: true,
   title: true,
   slug: true,
   thumbnail: true,

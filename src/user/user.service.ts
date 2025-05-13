@@ -21,23 +21,51 @@ export class UserService {
     let { password, name, ...user } = createUserInput;
     const hashedPassword = await hash(password);
 
-    if (!name) {
-      name = '旅行者' + Math.floor(Math.random() * 10000).toString();
-    }
-
-    return this.prisma.user
-      .create({
-        data: {
-          ...user,
-          name,
-          password: hashedPassword,
-        },
-      })
-      .catch((e) => {
-        if (e.code === 'P2002') {
-          throw new Error('用户已存在');
-        }
+    // 如果没有传 name，先用临时名注册，注册后再用 id 更新 name
+    let userName = name;
+    let createdUser;
+    if (!userName) {
+      // 用时间戳临时名，避免 unique 冲突
+      userName = '旅行者' + Date.now();
+      createdUser = await this.prisma.user
+        .create({
+          data: {
+            ...user,
+            name: userName,
+            password: hashedPassword,
+          },
+          select: { id: true },
+        })
+        .catch((e) => {
+          if (e.code === 'P2002') {
+            throw new Error('用户已存在');
+          }
+          throw e;
+        });
+      // 用 id 更新 name
+      const finalName = '旅行者' + createdUser.id;
+      return this.prisma.user.update({
+        where: { id: createdUser.id },
+        data: { name: finalName },
+        select: fullInfoSelect,
       });
+    } else {
+      return this.prisma.user
+        .create({
+          data: {
+            ...user,
+            name: userName,
+            password: hashedPassword,
+          },
+          select: fullInfoSelect,
+        })
+        .catch((e) => {
+          if (e.code === 'P2002') {
+            throw new Error('用户已存在');
+          }
+          throw e;
+        });
+    }
   }
 
   async getUserRoleById(id: number) {
@@ -86,19 +114,25 @@ export class UserService {
       select,
     });
   }
-
   async updateBasicInfo(id: number, data: Partial<UpdateUserInput>) {
-    return this.prisma.user.update({
-      where: { id },
-      data,
-      select: {
-        id: true,
-        name: true,
-        bio: true,
-        gender: true,
-        birthday: true,
-      },
-    });
+    try {
+      return await this.prisma.user.update({
+        where: { id },
+        data,
+        select: {
+          id: true,
+          name: true,
+          bio: true,
+          gender: true,
+          birthday: true,
+        },
+      });
+    } catch (e: any) {
+      if (e.code === 'P2002' && e.meta?.target?.includes('name')) {
+        throw new ForbiddenException('用户名已存在');
+      }
+      throw e;
+    }
   }
 
   async updateAvatar(id: number, avatar: string) {
@@ -331,6 +365,34 @@ export class UserService {
         },
       }),
       this.prisma.favorite.count({ where: { userId } }),
+    ]);
+    return {
+      list: list.map((item) => item.diary),
+      total,
+      page,
+      size,
+      totalPages: Math.ceil(total / size),
+    };
+  }
+
+  async getMyLikedDiaries(
+    userId: number,
+    query: { page?: number; size?: number },
+  ) {
+    const { page = 1, size = 10 } = query;
+    const [list, total] = await this.prisma.$transaction([
+      this.prisma.like.findMany({
+        where: { userId },
+        skip: (page - 1) * size,
+        take: size,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          diary: {
+            select: diarySelect,
+          },
+        },
+      }),
+      this.prisma.like.count({ where: { userId } }),
     ]);
     return {
       list: list.map((item) => item.diary),

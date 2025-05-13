@@ -55,7 +55,7 @@ export class OssService {
 
   async generatePresignedUrl(
     dto: PresignInputDto,
-  ): Promise<{ url: string; key: string }> {
+  ): Promise<{ url: string; key: string; contentType: string }> {
     const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'webm'];
     const ext = dto.ext.toLowerCase();
     if (!allowedExts.includes(ext)) {
@@ -95,14 +95,15 @@ export class OssService {
     };
     await redisClient.set(redisKey, JSON.stringify(metaToSave), 'EX', 600);
 
+    const contentType = contentTypeMap[ext];
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Key: key,
-      ContentType: contentTypeMap[ext],
+      ContentType: contentType,
       Metadata,
     });
     const url = await getSignedUrl(this.client, command, { expiresIn: 300 });
-    return { url, key };
+    return { url, key, contentType };
   }
 
   async confirmUpload(key: string, userId: number) {
@@ -136,5 +137,58 @@ export class OssService {
       },
     });
     return { success: true, ossObject };
+  }
+
+  /**
+   * 根据 key 查询 OSS 文件元信息
+   */
+  async getOssObjectByKey(key: string) {
+    if (!key) return null;
+    const meta = await this.prisma.ossObject.findUnique({ where: { key } });
+    return this.formatOssMeta(meta);
+  }
+
+  /**
+   * 批量获取 OSS 文件元信息
+   */
+  async getOssObjectsByKeys(keys: string[]): Promise<Record<string, any>> {
+    if (!keys || keys.length === 0) return {};
+    const list = await this.prisma.ossObject.findMany({
+      where: { key: { in: keys } },
+    });
+    const map: Record<string, any> = {};
+    for (const obj of list) {
+      map[obj.key] = this.formatOssMeta(obj);
+    }
+    return map;
+  }
+
+  /**
+   * 格式化 OSS 元信息，根据类型裁剪字段
+   */
+  formatOssMeta(meta: any) {
+    if (!meta) return null;
+    const base = {
+      id: meta.id,
+      key: meta.key,
+      userId: meta.userId,
+      ext: meta.ext,
+      type: meta.type,
+      createdAt: meta.createdAt,
+    };
+    const imageExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+    const videoExts = ['mp4', 'webm'];
+    if (imageExts.includes(meta.ext)) {
+      return { ...base, width: meta.width, height: meta.height };
+    }
+    if (videoExts.includes(meta.ext)) {
+      return {
+        ...base,
+        width: meta.width,
+        height: meta.height,
+        duration: meta.duration,
+      };
+    }
+    return base;
   }
 }
