@@ -288,7 +288,7 @@ export class DiaryService {
     });
   }
 
-  async getDiaryDetail(id: string, userId?: number) {
+  async getDiaryDetail(id: string, userId?: number, noHistory = false) {
     const diary = await this.prisma.diary.findUnique({
       where: { id },
       select: diaryDetailSelect,
@@ -301,10 +301,12 @@ export class DiaryService {
       thumbnailMeta = await this.ossService.getOssObjectByKey(diary.thumbnail);
     }
 
-    // 埋点：调用 TrackService 统一处理
-    await this.trackService.trackDiaryView(id, userId, diary.authorId);
-    // 埋点：TrackStats 日记浏览
-    await this.trackStatsService.incr('diary_view', new Date(), 1);
+    if (!noHistory) {
+      // 埋点：调用 TrackService 统一处理
+      await this.trackService.trackDiaryView(id, userId, diary.authorId);
+      // 埋点：TrackStats 日记浏览
+      await this.trackStatsService.incr('diary_view', new Date(), 1);
+    }
 
     let isLiked: boolean | undefined = undefined;
     let isFavorited: boolean | undefined = undefined;

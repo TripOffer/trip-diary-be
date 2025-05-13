@@ -94,8 +94,16 @@ export class DiaryController {
 
   @Get(':id/detail')
   @UseGuards(OptionalJwtAuthGuard)
-  async getDiaryDetail(@Param('id') id: string, @Req() req) {
-    return this.diaryService.getDiaryDetail(id, req.user?.id);
+  async getDiaryDetail(
+    @Param('id') id: string,
+    @Req() req,
+    @Query('noHistory') noHistory?: string,
+  ) {
+    return this.diaryService.getDiaryDetail(
+      id,
+      req.user?.id,
+      noHistory === '1' || noHistory === 'true',
+    );
   }
 
   @Post(':id/share')
