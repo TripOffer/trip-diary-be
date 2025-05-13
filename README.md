@@ -1,78 +1,161 @@
 # Trip Diary Backend
 
-## 如何开发
+## 项目简介
+
+本项目为携程第四期前端训练营大作业「旅行日记」的后端服务，基于 NestJS + Prisma 实现，支持用户注册、日记发布、评论、标签、统计分析等功能，适用于旅行日记、社交内容等场景。
+
+## 主要功能
+
+- 用户注册、登录、找回密码、关注/粉丝
+- 日记发布、浏览、点赞、收藏、评论
+- 标签管理与热门标签统计
+- OSS 文件上传（如图片）
+- 埋点统计与趋势分析（如活跃用户、日记浏览量等）
+- 管理后台统计接口
+
+## 技术栈
+
+- Node.js / TypeScript
+- NestJS
+- Prisma ORM
+- PostgreSQL
+- Redis
+- AWS S3 兼容对象存储
+
+## 安装与运行
+
+1. 安装依赖
 
 ```bash
 pnpm install
 ```
 
+2. 生成 Prisma Client
+
 ```bash
 npx prisma generate
 ```
 
-```bash
-pnpm run start:dev
-```
+3. 配置环境变量
 
-## 如何初始化
-
-复制 `.env.example` 到 `.env` 并修改配置
+复制 `.env.example` 为 `.env` 并根据实际情况修改配置：
 
 ```bash
 cp .env.example .env
 ```
 
+4. 初始化数据库（如首次运行）
+
 ```bash
 npx prisma migrate dev --name init
 ```
 
-## 其他
+5. 启动开发环境
 
-### 生成模拟数据
+```bash
+pnpm run start:dev
+```
+
+6. 生成模拟数据（可选）
 
 ```bash
 pnpm run db:seed
 ```
 
-## 日记推荐算法说明
+## 主要接口概览
 
-本项目的推荐接口（`GET /diary/recommend`）实现了类似小红书首页的日记推荐功能，支持个性化与通用推荐。推荐算法设计如下：
+> 接口文档：[旅行日记](https://apifox.com/apidoc/shared/3cc8c915-b9d0-46d2-b78f-92f0f2a00e48)
 
-### 1. 推荐逻辑概述
+### 认证 Auth
 
-- **未登录用户**：直接推荐全站热门日记，按点赞数、浏览量、发布时间降序排序。
-- **已登录用户**：优先推荐与用户点赞过的日记的标签（Tag）相关的日记，排除用户已点赞的日记，按热度排序。不足部分用全站热门日记补齐。如果推荐数量仍不足，则继续补充用户已点赞过的热门日记，保证推荐条数尽量填满。
+- `POST /auth/login` 用户登录
+- `POST /auth/register` 用户注册
+- `POST /auth/send-code` 发送邮箱验证码
+- `PUT /auth/password` 修改密码
+- `POST /auth/reset-password` 重置密码
+- `DELETE /auth` 注销账号
 
-### 2. 详细流程
+### 用户 User
 
-#### 2.1 未登录用户
+- `GET /user/list` 用户列表（需登录）
+- `GET /user/me` 当前用户信息
+- `PUT /user/me` 修改个人信息
+- `PUT /user/me/avatar` 修改头像
+- `GET /user/:id` 获取指定用户信息
+- `PUT /user/:id/follow` 关注用户
+- `PUT /user/:id/unfollow` 取关用户
+- `GET /user/:id/following` 关注列表
+- `GET /user/:id/followers` 粉丝列表
+- `GET /user/:id/diary` 用户日记列表
+- `GET /user/me/diary` 我的全部日记
+- `GET /user/me/favorite` 我的收藏
+- `GET /user/me/like` 我的点赞
 
-1. 查询所有已发布且审核通过的日记。
-2. 按 `likeCount`、`viewCount`、`publishedAt` 降序排序。
-3. 支持分页返回。
+### 日记 Diary
 
-#### 2.2 已登录用户
+- `POST /diary` 发布日记
+- `PATCH /diary/:id` 编辑日记
+- `DELETE /diary/:id` 删除日记
+- `GET /diary/review-list` 日记审核列表（需审核员）
+- `POST /diary/:id/review` 审核日记（需审核员）
+- `PATCH /diary/:id/publish` 发布/下架日记
+- `GET /diary/recommend` 推荐日记
+- `GET /diary/:id/detail` 日记详情
+- `POST /diary/:id/share` 分享日记
 
-1. 获取用户点赞过的所有日记的标签（Tag）。
-2. 查询含有这些标签的其他已发布且审核通过的日记，**排除用户已点赞的日记**。
-3. 按 `likeCount`、`viewCount`、`publishedAt` 降序排序，分页返回。
-4. 如果推荐数量不足，则补充全站热门日记（同未登录逻辑，排除已推荐和已点赞的）。
-5. 如果推荐数量仍不足，再补充用户已点赞过的热门日记，避免重复，保证推荐条数尽量达到 size。
+#### 日记互动
 
-### 3. 算法优点
+- `POST /diary/:id/like` 点赞
+- `DELETE /diary/:id/like` 取消点赞
+- `POST /diary/:id/favorite` 收藏
+- `DELETE /diary/:id/favorite` 取消收藏
 
-- **个性化**：已登录用户能看到与自己兴趣相关的内容，提升粘性。
-- **热度优先**：新用户或无兴趣画像时，依然能看到优质热门内容。
-- **实时性**：推荐内容随用户点赞行为动态变化。
-- **兜底保障**：即使日记数量很少，也能尽量补齐推荐条数。
+#### 评论
 
-### 4. 接口参数
+- `POST /diary/:id/comment` 发表评论
+- `DELETE /diary/:diaryId/comment/:id` 删除评论
+- `GET /diary/:id/comments` 获取评论列表
 
-- `page`：页码，默认1
-- `size`：每页数量，默认10，最大100
+### 标签 Tag
 
-### 5. 可扩展性
+- `GET /tag/hot` 热门标签
+- `GET /tag/:id/diaries` 某标签下的日记
+- `GET /tag/:id` 标签详情
+- `GET /tag?name=xxx` 根据名称查标签
 
-- 可进一步引入用户浏览、收藏、关注等行为，丰富兴趣画像。
-- 可引入协同过滤、内容相似度等更复杂的推荐算法。
-- 支持更多筛选条件（如屏蔽、黑名单、内容安全等）。
+### 统计 Stats
+
+- `GET /stats/summary` 趋势统计（支持多种埋点类型，详见文档）
+- `GET /stats/admin` 管理后台统计（需管理员）
+- `GET /stats/reviewer` 审核员统计（需审核员）
+
+### OSS 文件
+
+- `GET /oss/presign` 获取 OSS 上传预签名链接
+- `POST /oss/confirm-upload` 确认上传
+
+### 图片代理
+
+- `GET /image?...` 图片代理跳转
+
+> 更多接口细节和参数请参考 `src/` 目录下各 controller 及 DTO 文件，或查阅 docs 目录文档。
+
+## 接口文档
+
+- [埋点统计清单及说明](docs/track/README.md)
+- [统计接口文档](docs/stats-api.md)
+- 其他模块接口可参考 `src/` 目录下各 controller 及 DTO 文件
+
+## 贡献指南
+
+1. Fork 本仓库并新建分支
+2. 提交代码前请确保通过 lint 检查
+3. 提交 PR 并详细描述变更内容
+
+## 联系方式
+
+如有问题或建议，欢迎提 Issue 或联系维护者。
+
+---
+
+> 本项目为比赛/学习用途，欢迎交流与贡献。
