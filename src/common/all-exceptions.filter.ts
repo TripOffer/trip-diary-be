@@ -5,11 +5,13 @@ import {
   HttpException,
   HttpStatus,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
+  private readonly logger = new Logger(AllExceptionsFilter.name);
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -37,6 +39,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
       code = status;
     } else if (exception instanceof Error) {
       msg = exception.message;
+    }
+
+    if (status >= 500) {
+      // 记录系统级别错误日志
+      this.logger.error(
+        `[${request.method}] ${request.url} - ${msg}`,
+        exception instanceof Error ? exception.stack : '',
+      );
+    } else {
+      this.logger.warn(`[${request.method}] ${request.url} - ${msg}`);
     }
 
     response.status(status).json({
