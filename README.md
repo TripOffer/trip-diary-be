@@ -62,6 +62,33 @@ pnpm run start:dev
 pnpm run db:seed
 ```
 
+## Docker 部署
+
+### 环境准备
+
+确保已配置好 `.env` 文件（可参考 `.env.example`）。
+
+```bash
+cp .env.example .env
+```
+
+### 一键构建与启动
+
+在项目根目录下，执行：
+
+```sh
+docker compose up --build -d
+```
+
+- 首次启动会自动初始化数据库表结构。
+- 服务默认监听 3000 端口，可通过 `http://localhost:3000` 访问。
+
+### 注意事项
+
+- 数据库和 Redis 数据已持久化，重启容器不会丢失。
+- 如需修改数据库账号、密码等，请同步修改 `.env` 和 `docker-compose.yml`。
+- 生产环境建议配合 Nginx 反向代理和 HTTPS。
+
 ## 主要接口概览
 
 > 接口文档：[旅行日记](https://apifox.com/apidoc/shared/3cc8c915-b9d0-46d2-b78f-92f0f2a00e48)
