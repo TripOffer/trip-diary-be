@@ -27,6 +27,22 @@ export class OssController {
     }
   }
 
+  @Get('meta')
+  async getOssMeta(@Query('key') key: string) {
+    if (!key) throw new BadRequestException('缺少 key');
+    const meta = await this.ossService.getOssObjectByKey(key);
+    if (!meta) throw new BadRequestException('未找到元信息');
+    return meta;
+  }
+
+  @Post('meta/batch')
+  async getOssMetaBatch(@Body('keys') keys: string[]) {
+    if (!Array.isArray(keys) || keys.length === 0) {
+      throw new BadRequestException('缺少 keys');
+    }
+    return await this.ossService.getOssObjectsByKeys(keys);
+  }
+
   @Post('confirm-upload')
   @UseGuards(JwtAuthGuard)
   async confirmUpload(@Body() dto: ConfirmUploadInputDto, @Request() req: any) {
